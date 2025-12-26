@@ -13,32 +13,33 @@ document.addEventListener('DOMContentLoaded', function() {
     isMirrored: true,
     showGrid: false,
     resolution: 'medium',
-    cameraInitialized: false
+    cameraInitialized: false,
+    showPoseOverlay: true
   };
 
   // Pose data - 20 poses with image references
-  const poses = [
-    { id: 1, image: "https://via.placeholder.com/150/ff6b8b/ffffff?text=Pose+1", label: "Peace Sign" },
-    { id: 2, image: "https://via.placeholder.com/150/ff8e53/ffffff?text=Pose+2", label: "Cool Pose" },
-    { id: 3, image: "https://via.placeholder.com/150/4CAF50/ffffff?text=Pose+3", label: "Hands on Hips" },
-    { id: 4, image: "https://via.placeholder.com/150/2196F3/ffffff?text=Pose+4", label: "Thumbs Up" },
-    { id: 5, image: "https://via.placeholder.com/150/9C27B0/ffffff?text=Pose+5", label: "Jumping" },
-    { id: 6, image: "https://via.placeholder.com/150/FF9800/ffffff?text=Pose+6", label: "Silly Face" },
-    { id: 7, image: "https://via.placeholder.com/150/795548/ffffff?text=Pose+7", label: "Superhero" },
-    { id: 8, image: "https://via.placeholder.com/150/607D8B/ffffff?text=Pose+8", label: "Dancing" },
-    { id: 9, image: "https://via.placeholder.com/150/00BCD4/ffffff?text=Pose+9", label: "Thinking" },
-    { id: 10, image: "https://via.placeholder.com/150/8BC34A/ffffff?text=Pose+10", label: "Winking" },
-    { id: 11, image: "https://via.placeholder.com/150/E91E63/ffffff?text=Pose+11", label: "Heart Hands" },
-    { id: 12, image: "https://via.placeholder.com/150/3F51B5/ffffff?text=Pose+12", label: "Surprised" },
-    { id: 13, image: "https://via.placeholder.com/150/009688/ffffff?text=Pose+13", label: "Flexing" },
-    { id: 14, image: "https://via.placeholder.com/150/CDDC39/ffffff?text=Pose+14", label: "Blowing Kiss" },
-    { id: 15, image: "https://via.placeholder.com/150/FF5722/ffffff?text=Pose+15", label: "Pointing" },
-    { id: 16, image: "https://via.placeholder.com/150/673AB7/ffffff?text=Pose+16", label: "Celebration" },
-    { id: 17, image: "https://via.placeholder.com/150/FFC107/333333?text=Pose+17", label: "Model Pose" },
-    { id: 18, image: "https://via.placeholder.com/150/795548/ffffff?text=Pose+18", label: "Group Hug" },
-    { id: 19, image: "https://via.placeholder.com/150/607D8B/ffffff?text=Pose+19", label: "Sitting Pose" },
-    { id: 20, image: "https://via.placeholder.com/150/2196F3/ffffff?text=Pose+20", label: "Action Pose" }
-  ];
+const poses = [
+  { id: 1, image: "poses/pose1.png", label: "Peace Sign" },
+  { id: 2, image: "poses/pose2.png", label: "Cool Pose" },
+  { id: 3, image: "poses/pose3.png", label: "Hands on Hips" },
+  { id: 4, image: "poses/pose4.png", label: "Thumbs Up" },
+  { id: 5, image: "poses/pose5.png", label: "Jumping" },
+  { id: 6, image: "poses/pose6.png", label: "Silly Face" },
+  { id: 7, image: "poses/pose7.png", label: "Superhero" },
+  { id: 8, image: "poses/pose8.png", label: "Dancing" },
+  { id: 9, image: "poses/pose9.png", label: "Thinking" },
+  { id: 10, image: "poses/pose10.png", label: "Winking" },
+  { id: 11, image: "poses/pose11.png", label: "Heart Hands" },
+  { id: 12, image: "poses/pose12.png", label: "Surprised" },
+  { id: 13, image: "poses/pose13.png", label: "Flexing" },
+  { id: 14, image: "poses/pose14.png", label: "Blowing Kiss" },
+  { id: 15, image: "poses/pose15.png", label: "Pointing" },
+  { id: 16, image: "poses/pose16.png", label: "Celebration" },
+  { id: 17, image: "poses/pose17.png", label: "Model Pose" },
+  { id: 18, image: "poses/pose18.png", label: "Group Hug" },
+  { id: 19, image: "poses/pose19.png", label: "Sitting Pose" },
+  { id: 20, image: "poses/pose20.png", label: "Action Pose" }
+];
 
   // DOM Elements
   const pagePoses = document.getElementById('page-poses');
@@ -70,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const switchCameraBtn = document.getElementById('switchCamera');
   const toggleGridBtn = document.getElementById('toggleGrid');
   const toggleMirrorBtn = document.getElementById('toggleMirror');
+  const togglePoseOverlayBtn = document.getElementById('togglePoseOverlay');
   const resolutionSelect = document.getElementById('resolution');
   const savePhotoBtn = document.getElementById('savePhoto');
   const usePhotoBtn = document.getElementById('usePhoto');
@@ -227,6 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
     state.isCapturing = false;
     state.countdownActive = false;
     state.cameraInitialized = false;
+    state.showPoseOverlay = true;
     
     // Update camera page
     updateCameraPage();
@@ -238,7 +241,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update buttons
     finishSessionBtn.disabled = true;
     retakeCurrentBtn.style.display = 'none';
-    captureBtn.disabled = true; // Disable until camera is ready
+    captureBtn.disabled = true;
+    togglePoseOverlayBtn.classList.add('active');
     
     // Show camera permission screen first (don't auto-initialize camera)
     showCameraPermissionScreen();
@@ -294,6 +298,13 @@ document.addEventListener('DOMContentLoaded', function() {
       // Mark camera as initialized
       state.cameraInitialized = true;
       
+      // Update pose overlay visibility
+      if (state.showPoseOverlay) {
+        showPoseOverlay();
+      } else {
+        hidePoseOverlay();
+      }
+      
     } catch (error) {
       console.error('Camera initialization error:', error);
       showCameraError('Failed to initialize camera. Please check permissions.');
@@ -337,6 +348,15 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Set camera feed source
       cameraFeed.srcObject = state.cameraStream;
+      
+      // Apply mirror effect
+      if (state.isMirrored) {
+        cameraFeed.style.transform = 'scaleX(-1)';
+        toggleMirrorBtn.classList.add('active');
+      } else {
+        cameraFeed.style.transform = 'scaleX(1)';
+        toggleMirrorBtn.classList.remove('active');
+      }
       
       // Hide permission/error screens
       cameraPermission.style.display = 'none';
@@ -453,7 +473,15 @@ document.addEventListener('DOMContentLoaded', function() {
     poseReferenceImage.src = currentPoseData.image;
     poseReferenceImage.alt = currentPoseData.label;
     
-    // Update pose info
+    // Update label text
+    const labelElement = currentPoseReference.querySelector('.pose-reference-label');
+    labelElement.textContent = `Pose ${state.currentPhotoIndex + 1}: ${currentPoseData.label}`;
+    
+    // Update instruction text
+    const instructionElement = currentPoseReference.querySelector('.pose-reference-instruction');
+    instructionElement.textContent = getPoseInstruction(currentPoseData.label);
+    
+    // Update pose info in status bar
     currentPoseName.textContent = currentPoseData.label;
     poseInstruction.textContent = getPoseInstruction(currentPoseData.label);
     
@@ -463,6 +491,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update taken photos highlight
     updateTakenPhotosHighlight();
+    
+    // Show pose overlay if enabled
+    if (state.showPoseOverlay && state.cameraInitialized) {
+      showPoseOverlay();
+    }
   }
 
   // Get instruction based on pose
@@ -523,6 +556,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Toggle pose overlay visibility
+  function togglePoseOverlay() {
+    state.showPoseOverlay = !state.showPoseOverlay;
+    
+    if (state.showPoseOverlay) {
+      showPoseOverlay();
+      togglePoseOverlayBtn.classList.add('active');
+    } else {
+      hidePoseOverlay();
+      togglePoseOverlayBtn.classList.remove('active');
+    }
+  }
+
+  // Show pose overlay
+  function showPoseOverlay() {
+    if (state.cameraInitialized) {
+      currentPoseReference.classList.add('active');
+      currentPoseReference.style.display = 'flex';
+    }
+  }
+
+  // Hide pose overlay
+  function hidePoseOverlay() {
+    currentPoseReference.classList.remove('active');
+    currentPoseReference.style.display = 'none';
+  }
+
   // Start the photo capture process
   function capturePhoto() {
     if (!state.cameraInitialized) {
@@ -535,6 +595,9 @@ document.addEventListener('DOMContentLoaded', function() {
     state.countdownActive = true;
     captureBtn.disabled = true;
     updateCameraStatus('Get ready...');
+    
+    // Hide pose overlay during countdown
+    hidePoseOverlay();
     
     // Show countdown
     let count = 3;
@@ -748,6 +811,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (state.cameraInitialized) {
         updateCameraStatus('Ready to capture');
       }
+      
+      // Show pose overlay if enabled
+      if (state.showPoseOverlay) {
+        showPoseOverlay();
+      }
     }
   }
 
@@ -761,6 +829,11 @@ document.addEventListener('DOMContentLoaded', function() {
     updateCameraUI();
     if (state.cameraInitialized) {
       updateCameraStatus('Ready to capture');
+    }
+    
+    // Show pose overlay if enabled
+    if (state.showPoseOverlay) {
+      showPoseOverlay();
     }
     
     // Update finish button
@@ -840,6 +913,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (state.cameraInitialized) {
       updateCameraStatus('Ready to capture');
     }
+    
+    // Show pose overlay if enabled
+    if (state.showPoseOverlay) {
+      showPoseOverlay();
+    }
   }
 
   // Finish the photo session
@@ -879,16 +957,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  // Add CSS for flash success animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes flashSuccess {
-      0%, 100% { background: transparent; }
-      50% { background: rgba(107, 255, 139, 0.3); }
-    }
-  `;
-  document.head.appendChild(style);
-
   // Event Listeners
   startSessionBtn.addEventListener('click', goToCameraPage);
   clearSelectionBtn.addEventListener('click', clearSelection);
@@ -919,6 +987,7 @@ document.addEventListener('DOMContentLoaded', function() {
   switchCameraBtn.addEventListener('click', switchCamera);
   toggleGridBtn.addEventListener('click', toggleGrid);
   toggleMirrorBtn.addEventListener('click', toggleMirror);
+  togglePoseOverlayBtn.addEventListener('click', togglePoseOverlay);
   resolutionSelect.addEventListener('change', changeResolution);
   savePhotoBtn.addEventListener('click', savePhoto);
   usePhotoBtn.addEventListener('click', usePhoto);
