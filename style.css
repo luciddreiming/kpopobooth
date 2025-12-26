@@ -369,34 +369,71 @@ button {
   max-width: 400px;
 }
 
+/* Updated Pose Reference as Overlay */
 .pose-reference {
   position: absolute;
-  top: 30px;
-  right: 30px;
-  width: 150px;
-  height: 150px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.7);
-  border: 3px solid #ffcc00;
-  border-radius: 12px;
-  padding: 10px;
-  z-index: 10;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+  display: none;
+}
+
+.pose-reference.active {
+  display: flex;
 }
 
 .pose-reference-label {
   color: #ffcc00;
-  font-size: 14px;
+  font-size: 28px;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
 }
 
 .pose-reference-image {
-  width: 100%;
-  height: 100%;
+  width: 80%;
+  height: 80%;
+  max-width: 500px;
+  max-height: 500px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 15px;
+  border: 3px solid #ffcc00;
+  box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px;
+}
+
+.pose-reference-instruction {
+  color: white;
+  font-size: 18px;
+  text-align: center;
+  margin-top: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+  max-width: 600px;
+  line-height: 1.4;
+}
+
+/* Make sure the video is still visible but slightly faded when overlay is active */
+.pose-reference.active ~ #cameraFeed {
+  opacity: 0.4;
+  filter: blur(2px);
 }
 
 .alignment-grid {
@@ -832,6 +869,12 @@ button {
   padding: 0 20px;
 }
 
+/* Animation for successful completion */
+@keyframes flashSuccess {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(107, 255, 139, 0.3); }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .pose-grid {
@@ -852,10 +895,23 @@ button {
   }
   
   .pose-reference {
-    width: 100px;
-    height: 100px;
-    top: 15px;
-    right: 15px;
+    padding: 10px;
+  }
+  
+  .pose-reference-label {
+    font-size: 20px;
+    padding: 8px 15px;
+  }
+  
+  .pose-reference-image {
+    width: 90%;
+    height: 60%;
+    padding: 10px;
+  }
+  
+  .pose-reference-instruction {
+    font-size: 14px;
+    padding: 8px 15px;
   }
   
   .countdown-number {
@@ -887,5 +943,10 @@ button {
     flex-direction: column;
     width: 100%;
     max-width: 200px;
+  }
+  
+  .camera-options {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
