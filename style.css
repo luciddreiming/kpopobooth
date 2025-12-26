@@ -369,71 +369,116 @@ button {
   max-width: 400px;
 }
 
-/* Updated Pose Reference as Overlay */
+/* Updated Pose Reference as Full-Screen Background */
 .pose-reference {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  border: none;
-  border-radius: 0;
-  padding: 0;
+  background: rgba(0, 0, 0, 0.85);
   z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(5px);
   display: none;
 }
 
 .pose-reference.active {
+  display: block;
+}
+
+.pose-reference-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
 .pose-reference-label {
   color: #ffcc00;
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   text-align: center;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  background: rgba(0, 0, 0, 0.7);
-  padding: 10px 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 10px 25px;
   border-radius: 10px;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
 }
 
 .pose-reference-image {
-  width: 80%;
-  height: 80%;
-  max-width: 500px;
-  max-height: 500px;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  border-radius: 15px;
-  border: 3px solid #ffcc00;
-  box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
-  background: rgba(0, 0, 0, 0.8);
-  padding: 15px;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 5;
 }
 
 .pose-reference-instruction {
   color: white;
-  font-size: 18px;
+  font-size: 20px;
   text-align: center;
-  margin-top: 20px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 10px 20px;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 12px 25px;
   border-radius: 10px;
-  max-width: 600px;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: 80%;
   line-height: 1.4;
 }
 
-/* Make sure the video is still visible but slightly faded when overlay is active */
+/* Make the camera feed semi-transparent when pose overlay is active */
 .pose-reference.active ~ #cameraFeed {
-  opacity: 0.4;
-  filter: blur(2px);
+  opacity: 0.3;
+  filter: blur(3px);
+}
+
+/* Layout for landscape orientation - side by side */
+.pose-reference.landscape .pose-reference-content {
+  flex-direction: row;
+}
+
+.pose-reference.landscape .pose-reference-image {
+  width: 50%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pose-reference.landscape .camera-feed-overlay {
+  width: 50%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pose-reference.landscape ~ #cameraFeed {
+  opacity: 1;
+  filter: none;
+}
+
+.pose-reference.landscape .camera-feed-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .alignment-grid {
@@ -894,24 +939,30 @@ button {
     height: 400px;
   }
   
-  .pose-reference {
-    padding: 10px;
-  }
-  
   .pose-reference-label {
     font-size: 20px;
     padding: 8px 15px;
-  }
-  
-  .pose-reference-image {
-    width: 90%;
-    height: 60%;
-    padding: 10px;
+    top: 10px;
   }
   
   .pose-reference-instruction {
     font-size: 14px;
     padding: 8px 15px;
+    bottom: 10px;
+  }
+  
+  .pose-reference.landscape .pose-reference-content {
+    flex-direction: column;
+  }
+  
+  .pose-reference.landscape .pose-reference-image {
+    width: 100%;
+    height: 70%;
+  }
+  
+  .pose-reference.landscape .camera-feed-overlay {
+    width: 100%;
+    height: 30%;
   }
   
   .countdown-number {
