@@ -15,7 +15,8 @@ document.addEventListener('DOMContentLoaded', function() {
     resolution: 'medium',
     cameraInitialized: false,
     showPoseOverlay: true,
-    poseOverlayOpacity: 0.5 // Default opacity for pose overlay
+    poseOverlayOpacity: 0.5, // Default opacity for pose overlay
+    loadedPoseImages: {} // Cache for loaded pose images
   };
 
   // Pose data - 20 poses with image references
@@ -86,6 +87,18 @@ document.addEventListener('DOMContentLoaded', function() {
   const poseOverlay = document.getElementById('poseOverlay');
   const posePreview = document.getElementById('posePreview');
 
+  // Preload pose images when poses are selected
+  function preloadPoseImages() {
+    state.selectedPoses.forEach(pose => {
+      if (!state.loadedPoseImages[pose.id]) {
+        const img = new Image();
+        img.src = pose.image;
+        img.crossOrigin = "anonymous";
+        state.loadedPoseImages[pose.id] = img;
+      }
+    });
+  }
+
   // Initialize the pose selection page
   function initPoseSelection() {
     // Clear the pose grid
@@ -151,6 +164,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // Remove pose number indicator
       const poseNumber = poseBox.querySelector('.pose-number');
       if (poseNumber) poseNumber.remove();
+      
+      // Remove from loaded images
+      delete state.loadedPoseImages[id];
     } else {
       // Check if we can add more (max 4)
       if (state.selectedPoses.length >= 4) {
@@ -161,6 +177,12 @@ document.addEventListener('DOMContentLoaded', function() {
       // Add to selection
       state.selectedPoses.push({ ...pose });
       poseBox.classList.add('selected');
+      
+      // Preload the image
+      const img = new Image();
+      img.src = pose.image;
+      img.crossOrigin = "anonymous";
+      state.loadedPoseImages[pose.id] = img;
       
       // Add pose number indicator
       const poseNumber = document.createElement('div');
@@ -211,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Clear all selected poses
   function clearSelection() {
     state.selectedPoses = [];
+    state.loadedPoseImages = {};
     
     // Clear all selected pose boxes
     document.querySelectorAll('.pose-box.selected').forEach(box => {
@@ -227,6 +250,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function goToCameraPage() {
     pagePoses.classList.remove('active');
     pageCamera.classList.add('active');
+    
+    // Preload all pose images
+    preloadPoseImages();
     
     // Reset camera state
     state.currentPhotoIndex = 0;
@@ -666,68 +692,61 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get canvas context
     const ctx = photoCanvas.getContext('2d');
     
-    // Apply mirror effect if enabled
+    // Clear the canvas first
+    ctx.clearRect(0, 0, videoWidth, videoHeight);
+    
+    // Draw video frame to canvas
     if (state.isMirrored) {
       ctx.translate(videoWidth, 0);
       ctx.scale(-1, 1);
     }
     
-    // Draw video frame to canvas
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
     
     // Draw pose overlay on top of the photo
-    if (state.showPoseOverlay) {
-      // Create pose image
-      const poseImg = new Image();
-      poseImg.src = state.selectedPoses[state.currentPhotoIndex].image;
-      poseImg.crossOrigin = "anonymous";
+    if (state.showPoseOverlay && state.poseOverlayOpacity > 0) {
+      const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+      const poseImg = state.loadedPoseImages[currentPoseData.id];
       
-      // Draw pose image once it's loaded
-      poseImg.onload = function() {
+      if (poseImg && poseImg.complete) {
         // Reset transformation for pose image
-        if (state.isMirrored) {
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         
         // Apply opacity for the pose image
         ctx.globalAlpha = state.poseOverlayOpacity;
         
-        // Calculate aspect ratios
+        // Calculate dimensions to fill the entire canvas
+        // We want to cover the entire canvas with the pose image
         const poseAspect = poseImg.width / poseImg.height;
         const canvasAspect = videoWidth / videoHeight;
+        
         let drawWidth, drawHeight, drawX, drawY;
         
-        // Calculate dimensions to fill the canvas
-        if (poseAspect > canvasAspect) {
-          // Pose is wider than canvas - fit to width
-          drawWidth = videoWidth;
-          drawHeight = videoWidth / poseAspect;
-          drawX = 0;
-          drawY = (videoHeight - drawHeight) / 2;
-        } else {
-          // Pose is taller than canvas - fit to height
+        // Cover strategy: make image cover the entire canvas (like background-size: cover)
+        if (canvasAspect > poseAspect) {
+          // Canvas is wider relative to its height than the pose image
           drawHeight = videoHeight;
           drawWidth = videoHeight * poseAspect;
           drawX = (videoWidth - drawWidth) / 2;
           drawY = 0;
+        } else {
+          // Canvas is taller relative to its width than the pose image
+          drawWidth = videoWidth;
+          drawHeight = videoWidth / poseAspect;
+          drawX = 0;
+          drawY = (videoHeight - drawHeight) / 2;
         }
         
-        // Draw the pose image to fill the canvas
+        // Draw the pose image
         ctx.drawImage(poseImg, drawX, drawY, drawWidth, drawHeight);
         
-        // Complete photo capture process
-        completePhotoCapture();
-      };
-      
-      // Handle image loading error
-      poseImg.onerror = function() {
-        console.error('Failed to load pose image');
-        completePhotoCapture();
-      };
-    } else {
-      // Complete without pose overlay
-      completePhotoCapture();
+        // Reset global alpha
+        ctx.globalAlpha = 1;
+      }
     }
+    
+    // Complete photo capture process
+    completePhotoCapture();
   }
 
   // Complete the photo capture process
@@ -736,14 +755,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoWidth = cameraFeed.videoWidth;
     const videoHeight = cameraFeed.videoHeight;
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-    
-    // Reset transformation for text
-    if (state.isMirrored) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-    
-    // Reset global alpha
-    ctx.globalAlpha = 1;
     
     // Add pose label to photo
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
