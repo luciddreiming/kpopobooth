@@ -324,50 +324,6 @@ button {
   overflow: hidden;
 }
 
-/* Pose background - This is now the actual background */
-.pose-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  z-index: 1;
-  filter: brightness(0.9);
-  transition: opacity 0.5s ease;
-  display: none;
-}
-
-.pose-background.active {
-  display: block;
-}
-
-/* Camera feed overlay - User appears in front of the background */
-.camera-feed-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.camera-feed-container {
-  width: 70%;
-  height: 80%;
-  border-radius: 15px;
-  overflow: hidden;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
-  border: 3px solid #ffcc00;
-  background: #000;
-  position: relative;
-}
-
 #cameraFeed {
   width: 100%;
   height: 100%;
@@ -375,41 +331,76 @@ button {
   transform: scaleX(-1); /* Mirror the camera feed */
 }
 
-/* Pose info overlay */
-.pose-info-overlay {
+/* Pose Overlay as semi-transparent background */
+.pose-overlay {
   position: absolute;
-  top: 20px;
+  top: 0;
   left: 0;
   width: 100%;
-  text-align: center;
-  z-index: 3;
-  display: none;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pose-info-overlay.active {
-  display: block;
+.pose-overlay-image {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
 }
 
-.pose-reference-label {
-  display: inline-block;
+/* Pose opacity controls */
+.pose-opacity-controls {
+  position: absolute;
+  bottom: 100px;
+  right: 20px;
   background: rgba(0, 0, 0, 0.7);
-  color: #ffcc00;
-  font-size: 22px;
-  font-weight: 600;
-  padding: 10px 25px;
+  padding: 15px;
   border-radius: 10px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  margin-bottom: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
 }
 
-.pose-reference-instruction {
-  display: inline-block;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  font-size: 16px;
-  padding: 8px 20px;
-  border-radius: 8px;
-  max-width: 80%;
+.pose-opacity-controls label {
+  font-size: 14px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#poseOpacitySlider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  background: linear-gradient(to right, rgba(255,255,255,0.1), rgba(255,255,255,0.8));
+  border-radius: 4px;
+  outline: none;
+}
+
+#poseOpacitySlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffcc00;
+  cursor: pointer;
+  border: 2px solid white;
+}
+
+#opacityValue {
+  font-weight: bold;
+  color: #ffcc00;
+  min-width: 40px;
+  text-align: center;
 }
 
 .camera-permission,
@@ -450,6 +441,67 @@ button {
   max-width: 400px;
 }
 
+/* Pose Reference Overlay */
+.pose-reference {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+  display: none;
+}
+
+.pose-reference.active {
+  display: flex;
+}
+
+.pose-reference-label {
+  color: #ffcc00;
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+
+.pose-reference-image {
+  width: 80%;
+  height: 80%;
+  max-width: 500px;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 15px;
+  border: 3px solid #ffcc00;
+  box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px;
+}
+
+.pose-reference-instruction {
+  color: white;
+  font-size: 18px;
+  text-align: center;
+  margin-top: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border-radius: 10px;
+  max-width: 600px;
+  line-height: 1.4;
+}
+
 .alignment-grid {
   position: absolute;
   top: 0;
@@ -457,7 +509,6 @@ button {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 3;
 }
 
 .grid-line {
@@ -781,6 +832,7 @@ button {
 .camera-options {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .btn-option {
@@ -909,19 +961,24 @@ button {
     height: 400px;
   }
   
+  .pose-reference {
+    padding: 10px;
+  }
+  
   .pose-reference-label {
-    font-size: 18px;
+    font-size: 20px;
     padding: 8px 15px;
+  }
+  
+  .pose-reference-image {
+    width: 90%;
+    height: 60%;
+    padding: 10px;
   }
   
   .pose-reference-instruction {
     font-size: 14px;
-    padding: 6px 12px;
-  }
-  
-  .camera-feed-container {
-    width: 80%;
-    height: 70%;
+    padding: 8px 15px;
   }
   
   .countdown-number {
@@ -959,19 +1016,11 @@ button {
     flex-wrap: wrap;
     justify-content: center;
   }
-}
-
-@media (max-width: 480px) {
-  .camera-feed-container {
-    width: 90%;
-    height: 60%;
-  }
   
-  .pose-reference-label {
-    font-size: 16px;
-  }
-  
-  .pose-reference-instruction {
-    font-size: 12px;
+  .pose-opacity-controls {
+    bottom: 120px;
+    right: 10px;
+    left: 10px;
+    min-width: auto;
   }
 }
