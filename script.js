@@ -14,32 +14,33 @@ document.addEventListener('DOMContentLoaded', function() {
     showGrid: false,
     resolution: 'medium',
     cameraInitialized: false,
-    showPoseOverlay: true
+    showPoseOverlay: true,
+    poseOverlayOpacity: 0.5 // Default opacity for pose overlay
   };
 
   // Pose data - 20 poses with image references
-const poses = [
-  { id: 1, image: "poses/pose1.png", label: "Peace Sign" },
-  { id: 2, image: "poses/pose2.png", label: "Cool Pose" },
-  { id: 3, image: "poses/pose3.png", label: "Hands on Hips" },
-  { id: 4, image: "poses/pose4.png", label: "Thumbs Up" },
-  { id: 5, image: "poses/pose5.png", label: "Jumping" },
-  { id: 6, image: "poses/pose6.png", label: "Silly Face" },
-  { id: 7, image: "poses/pose7.png", label: "Superhero" },
-  { id: 8, image: "poses/pose8.png", label: "Dancing" },
-  { id: 9, image: "poses/pose9.png", label: "Thinking" },
-  { id: 10, image: "poses/pose10.png", label: "Winking" },
-  { id: 11, image: "poses/pose11.png", label: "Heart Hands" },
-  { id: 12, image: "poses/pose12.png", label: "Surprised" },
-  { id: 13, image: "poses/pose13.png", label: "Flexing" },
-  { id: 14, image: "poses/pose14.png", label: "Blowing Kiss" },
-  { id: 15, image: "poses/pose15.png", label: "Pointing" },
-  { id: 16, image: "poses/pose16.png", label: "Celebration" },
-  { id: 17, image: "poses/pose17.png", label: "Model Pose" },
-  { id: 18, image: "poses/pose18.png", label: "Group Hug" },
-  { id: 19, image: "poses/pose19.png", label: "Sitting Pose" },
-  { id: 20, image: "poses/pose20.png", label: "Action Pose" }
-];
+  const poses = [
+    { id: 1, image: "poses/pose1.png", label: "Peace Sign" },
+    { id: 2, image: "poses/pose2.png", label: "Cool Pose" },
+    { id: 3, image: "poses/pose3.png", label: "Hands on Hips" },
+    { id: 4, image: "poses/pose4.png", label: "Thumbs Up" },
+    { id: 5, image: "poses/pose5.png", label: "Jumping" },
+    { id: 6, image: "poses/pose6.png", label: "Silly Face" },
+    { id: 7, image: "poses/pose7.png", label: "Superhero" },
+    { id: 8, image: "poses/pose8.png", label: "Dancing" },
+    { id: 9, image: "poses/pose9.png", label: "Thinking" },
+    { id: 10, image: "poses/pose10.png", label: "Winking" },
+    { id: 11, image: "poses/pose11.png", label: "Heart Hands" },
+    { id: 12, image: "poses/pose12.png", label: "Surprised" },
+    { id: 13, image: "poses/pose13.png", label: "Flexing" },
+    { id: 14, image: "poses/pose14.png", label: "Blowing Kiss" },
+    { id: 15, image: "poses/pose15.png", label: "Pointing" },
+    { id: 16, image: "poses/pose16.png", label: "Celebration" },
+    { id: 17, image: "poses/pose17.png", label: "Model Pose" },
+    { id: 18, image: "poses/pose18.png", label: "Group Hug" },
+    { id: 19, image: "poses/pose19.png", label: "Sitting Pose" },
+    { id: 20, image: "poses/pose20.png", label: "Action Pose" }
+  ];
 
   // DOM Elements
   const pagePoses = document.getElementById('page-poses');
@@ -80,6 +81,10 @@ const poses = [
   const currentPoseName = document.getElementById('current-pose-name');
   const poseInstruction = document.getElementById('pose-instruction');
   const statusDot = document.getElementById('statusDot');
+  const opacitySlider = document.getElementById('poseOpacitySlider');
+  const opacityValue = document.getElementById('opacityValue');
+  const poseOverlay = document.getElementById('poseOverlay');
+  const posePreview = document.getElementById('posePreview');
 
   // Initialize the pose selection page
   function initPoseSelection() {
@@ -230,6 +235,11 @@ const poses = [
     state.countdownActive = false;
     state.cameraInitialized = false;
     state.showPoseOverlay = true;
+    state.poseOverlayOpacity = 0.5;
+    
+    // Update opacity slider
+    opacitySlider.value = state.poseOverlayOpacity * 100;
+    opacityValue.textContent = `${Math.round(state.poseOverlayOpacity * 100)}%`;
     
     // Update camera page
     updateCameraPage();
@@ -473,6 +483,10 @@ const poses = [
     poseReferenceImage.src = currentPoseData.image;
     poseReferenceImage.alt = currentPoseData.label;
     
+    // Update pose overlay
+    posePreview.src = currentPoseData.image;
+    posePreview.alt = currentPoseData.label;
+    
     // Update label text
     const labelElement = currentPoseReference.querySelector('.pose-reference-label');
     labelElement.textContent = `Pose ${state.currentPhotoIndex + 1}: ${currentPoseData.label}`;
@@ -574,6 +588,9 @@ const poses = [
     if (state.cameraInitialized) {
       currentPoseReference.classList.add('active');
       currentPoseReference.style.display = 'flex';
+      
+      // Update overlay opacity
+      updatePoseOverlayOpacity();
     }
   }
 
@@ -581,6 +598,18 @@ const poses = [
   function hidePoseOverlay() {
     currentPoseReference.classList.remove('active');
     currentPoseReference.style.display = 'none';
+  }
+
+  // Update pose overlay opacity
+  function updatePoseOverlayOpacity() {
+    poseOverlay.style.opacity = state.poseOverlayOpacity;
+  }
+
+  // Change pose overlay opacity
+  function changePoseOpacity(value) {
+    state.poseOverlayOpacity = value / 100;
+    opacityValue.textContent = `${value}%`;
+    updatePoseOverlayOpacity();
   }
 
   // Start the photo capture process
@@ -621,97 +650,143 @@ const poses = [
     }, 1000);
   }
 
-async function takePhoto() {
-  state.isCapturing = true;
-  updateCameraStatus('Capturing...');
-
-  const videoWidth = cameraFeed.videoWidth;
-  const videoHeight = cameraFeed.videoHeight;
-
-  photoCanvas.width = videoWidth;
-  photoCanvas.height = videoHeight;
-
-  const ctx = photoCanvas.getContext('2d');
-  ctx.clearRect(0, 0, videoWidth, videoHeight);
-
-  const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-
-  /* ===============================
-     1️⃣ DRAW BACKGROUND FIRST
-     =============================== */
-  if (currentPoseData?.image) {
-    const bgImage = await loadImage(currentPoseData.image);
-
-    ctx.drawImage(
-      bgImage,
-      0,
-      0,
-      videoWidth,
-      videoHeight
-    );
+  // Take photo from camera
+  function takePhoto() {
+    state.isCapturing = true;
+    updateCameraStatus('Capturing...');
+    
+    // Set canvas dimensions to match video feed
+    const videoWidth = cameraFeed.videoWidth;
+    const videoHeight = cameraFeed.videoHeight;
+    photoCanvas.width = videoWidth;
+    photoCanvas.height = videoHeight;
+    
+    // Get canvas context
+    const ctx = photoCanvas.getContext('2d');
+    
+    // Apply mirror effect if enabled
+    if (state.isMirrored) {
+      ctx.translate(videoWidth, 0);
+      ctx.scale(-1, 1);
+    }
+    
+    // Draw video frame to canvas
+    ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+    
+    // Draw pose overlay on top of the photo
+    if (state.showPoseOverlay) {
+      // Save the current state
+      ctx.save();
+      
+      // Reset transformation for pose image
+      if (state.isMirrored) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+      
+      // Create pose image
+      const poseImg = new Image();
+      poseImg.src = state.selectedPoses[state.currentPhotoIndex].image;
+      poseImg.crossOrigin = "anonymous";
+      
+      // Draw pose image once it's loaded
+      poseImg.onload = function() {
+        // Apply opacity for the pose image
+        ctx.globalAlpha = state.poseOverlayOpacity;
+        
+        // Draw pose image centered and scaled to fit
+        const poseAspect = poseImg.width / poseImg.height;
+        const canvasAspect = videoWidth / videoHeight;
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (poseAspect > canvasAspect) {
+          // Pose is wider than canvas
+          drawWidth = videoWidth;
+          drawHeight = videoWidth / poseAspect;
+          drawX = 0;
+          drawY = (videoHeight - drawHeight) / 2;
+        } else {
+          // Pose is taller than canvas
+          drawHeight = videoHeight;
+          drawWidth = videoHeight * poseAspect;
+          drawX = (videoWidth - drawWidth) / 2;
+          drawY = 0;
+        }
+        
+        ctx.drawImage(poseImg, drawX, drawY, drawWidth, drawHeight);
+        
+        // Restore context
+        ctx.restore();
+        
+        // Complete photo capture process
+        completePhotoCapture();
+      };
+    } else {
+      // Complete without pose overlay
+      completePhotoCapture();
+    }
   }
 
-  /* ===============================
-     2️⃣ DRAW CAMERA ON TOP
-     =============================== */
-  ctx.save();
-
-  if (state.isMirrored) {
-    ctx.translate(videoWidth, 0);
-    ctx.scale(-1, 1);
+  // Complete the photo capture process
+  function completePhotoCapture() {
+    const ctx = photoCanvas.getContext('2d');
+    const videoWidth = cameraFeed.videoWidth;
+    const videoHeight = cameraFeed.videoHeight;
+    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+    
+    // Add pose label to photo
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
+    
+    ctx.font = 'bold 24px Poppins';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
+    
+    ctx.font = '16px Poppins';
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
+    
+    // Show flash effect
+    flash.style.opacity = '1';
+    
+    // Play capture sound
+    playCaptureSound();
+    
+    // Hide flash after delay
+    setTimeout(() => {
+      flash.style.opacity = '0';
+      
+      // Store the captured photo as data URL
+      const photoData = photoCanvas.toDataURL('image/jpeg', 0.9);
+      state.takenPhotos[state.currentPhotoIndex] = {
+        data: photoData,
+        label: currentPoseData.label,
+        poseId: currentPoseData.id
+      };
+      
+      // Update taken photos grid
+      updateTakenPhotosGrid();
+      
+      // Show captured photo
+      showCapturedPhoto();
+      
+      state.isCapturing = false;
+      updateCameraStatus('Photo captured!');
+      
+      // Auto-advance to next pose after 3 seconds if not the last one
+      if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
+        setTimeout(() => {
+          if (!state.isCapturing) {
+            navigateToNextPhoto();
+          }
+        }, 3000);
+      }
+      
+      // Update finish button
+      updateFinishButton();
+    }, 500);
   }
 
-  ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-  ctx.restore();
-
-  /* ===============================
-     3️⃣ ADD TEXT OVERLAY
-     =============================== */
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.fillRect(0, videoHeight - 70, videoWidth, 70);
-
-  ctx.font = 'bold 24px Poppins';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.fillText(
-    currentPoseData.label,
-    videoWidth / 2,
-    videoHeight - 35
-  );
-
-  ctx.font = '16px Poppins';
-  ctx.fillStyle = '#ffcc00';
-  ctx.fillText(
-    `Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`,
-    videoWidth / 2,
-    videoHeight - 12
-  );
-
-  /* ===============================
-     4️⃣ FLASH + SAVE
-     =============================== */
-  flash.style.opacity = '1';
-  playCaptureSound();
-
-  setTimeout(() => {
-    flash.style.opacity = '0';
-
-    const photoData = photoCanvas.toDataURL('image/jpeg', 0.95);
-
-    state.takenPhotos[state.currentPhotoIndex] = {
-      data: photoData,
-      label: currentPoseData.label,
-      poseId: currentPoseData.id
-    };
-
-    updateTakenPhotosGrid();
-    showCapturedPhoto();
-
-    state.isCapturing = false;
-    updateCameraStatus('Photo captured!');
-    updateFinishButton();
-  }, 400);
-}
   // Play capture sound
   function playCaptureSound() {
     // Create a simple beep sound using Web Audio API
@@ -964,14 +1039,6 @@ async function takePhoto() {
       goToPoseSelectionPage();
     }, 1000);
   }
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
 
   // Event Listeners
   startSessionBtn.addEventListener('click', goToCameraPage);
@@ -1007,8 +1074,12 @@ function loadImage(src) {
   resolutionSelect.addEventListener('change', changeResolution);
   savePhotoBtn.addEventListener('click', savePhoto);
   usePhotoBtn.addEventListener('click', usePhoto);
+  
+  // Pose opacity slider
+  opacitySlider.addEventListener('input', (e) => {
+    changePoseOpacity(e.target.value);
+  });
 
   // Initialize the application
   initPoseSelection();
 });
-
