@@ -1,4 +1,4 @@
-// Photo Booth Application with Real Camera and Pose Background
+// Photo Booth Application with Real Camera
 document.addEventListener('DOMContentLoaded', function() {
   // Application state
   const state = {
@@ -55,6 +55,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const retakeCurrentBtn = document.getElementById('retakeCurrent');
   const finishSessionBtn = document.getElementById('finishSession');
   const photoCounter = document.getElementById('photo-counter');
+  const currentPoseReference = document.getElementById('current-pose-reference');
+  const poseReferenceImage = currentPoseReference.querySelector('.pose-reference-image');
   const countdown = document.getElementById('countdown');
   const countdownNumber = countdown.querySelector('.countdown-number');
   const flash = document.getElementById('flash');
@@ -78,10 +80,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const currentPoseName = document.getElementById('current-pose-name');
   const poseInstruction = document.getElementById('pose-instruction');
   const statusDot = document.getElementById('statusDot');
-  const poseBackground = document.getElementById('pose-background');
-  const currentPoseLabel = document.getElementById('current-pose-label');
-  const currentPoseInstruction = document.getElementById('current-pose-instruction');
-  const poseInfoOverlay = document.getElementById('pose-info-overlay');
 
   // Initialize the pose selection page
   function initPoseSelection() {
@@ -302,11 +300,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Update pose overlay visibility
       if (state.showPoseOverlay) {
-        showPoseInfoOverlay();
-        poseBackground.style.opacity = '0.9';
+        showPoseOverlay();
       } else {
-        hidePoseInfoOverlay();
-        poseBackground.style.opacity = '0.3';
+        hidePoseOverlay();
       }
       
     } catch (error) {
@@ -473,15 +469,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update counter
     photoCounter.textContent = `${state.currentPhotoIndex + 1}/${state.selectedPoses.length}`;
     
-    // Update pose background
-    poseBackground.style.backgroundImage = `url('${currentPoseData.image}')`;
-    poseBackground.classList.add('active');
+    // Update pose reference
+    poseReferenceImage.src = currentPoseData.image;
+    poseReferenceImage.alt = currentPoseData.label;
     
     // Update label text
-    currentPoseLabel.textContent = `Pose ${state.currentPhotoIndex + 1}: ${currentPoseData.label}`;
+    const labelElement = currentPoseReference.querySelector('.pose-reference-label');
+    labelElement.textContent = `Pose ${state.currentPhotoIndex + 1}: ${currentPoseData.label}`;
     
     // Update instruction text
-    currentPoseInstruction.textContent = getPoseInstruction(currentPoseData.label);
+    const instructionElement = currentPoseReference.querySelector('.pose-reference-instruction');
+    instructionElement.textContent = getPoseInstruction(currentPoseData.label);
     
     // Update pose info in status bar
     currentPoseName.textContent = currentPoseData.label;
@@ -494,9 +492,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update taken photos highlight
     updateTakenPhotosHighlight();
     
-    // Show pose info overlay if enabled
+    // Show pose overlay if enabled
     if (state.showPoseOverlay && state.cameraInitialized) {
-      showPoseInfoOverlay();
+      showPoseOverlay();
     }
   }
 
@@ -526,18 +524,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     return instructions[poseLabel] || "Look at the camera and smile!";
-  }
-
-  // Show pose info overlay
-  function showPoseInfoOverlay() {
-    if (state.cameraInitialized) {
-      poseInfoOverlay.classList.add('active');
-    }
-  }
-
-  // Hide pose info overlay
-  function hidePoseInfoOverlay() {
-    poseInfoOverlay.classList.remove('active');
   }
 
   // Update camera UI based on state
@@ -575,14 +561,26 @@ document.addEventListener('DOMContentLoaded', function() {
     state.showPoseOverlay = !state.showPoseOverlay;
     
     if (state.showPoseOverlay) {
-      showPoseInfoOverlay();
-      poseBackground.style.opacity = '0.9';
+      showPoseOverlay();
       togglePoseOverlayBtn.classList.add('active');
     } else {
-      hidePoseInfoOverlay();
-      poseBackground.style.opacity = '0.3';
+      hidePoseOverlay();
       togglePoseOverlayBtn.classList.remove('active');
     }
+  }
+
+  // Show pose overlay
+  function showPoseOverlay() {
+    if (state.cameraInitialized) {
+      currentPoseReference.classList.add('active');
+      currentPoseReference.style.display = 'flex';
+    }
+  }
+
+  // Hide pose overlay
+  function hidePoseOverlay() {
+    currentPoseReference.classList.remove('active');
+    currentPoseReference.style.display = 'none';
   }
 
   // Start the photo capture process
@@ -598,8 +596,8 @@ document.addEventListener('DOMContentLoaded', function() {
     captureBtn.disabled = true;
     updateCameraStatus('Get ready...');
     
-    // Hide pose info overlay during countdown
-    hidePoseInfoOverlay();
+    // Hide pose overlay during countdown
+    hidePoseOverlay();
     
     // Show countdown
     let count = 3;
@@ -623,174 +621,112 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  // Take photo from camera
-  function takePhoto() {
-    state.isCapturing = true;
-    updateCameraStatus('Capturing...');
-    
-    // Set canvas dimensions to match video feed
-    const videoWidth = cameraFeed.videoWidth;
-    const videoHeight = cameraFeed.videoHeight;
-    photoCanvas.width = videoWidth;
-    photoCanvas.height = videoHeight;
-    
-    // Get canvas context
-    const ctx = photoCanvas.getContext('2d');
-    
-    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-    const bgImage = new Image();
-    
-    // Handle cross-origin images if needed
-    bgImage.crossOrigin = "anonymous";
-    
-    bgImage.onload = function() {
-      // Draw the pose background first
-      ctx.drawImage(bgImage, 0, 0, videoWidth, videoHeight);
-      
-      // Apply mirror effect if enabled
-      if (state.isMirrored) {
-        ctx.translate(videoWidth, 0);
-        ctx.scale(-1, 1);
-      }
-      
-      // Draw the camera feed on top of the background
-      ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-      
-      // Reset transformation
-      if (state.isMirrored) {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-      }
-      
-      // Add pose label to photo
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
-      
-      ctx.font = 'bold 24px Poppins';
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
-      
-      ctx.font = '16px Poppins';
-      ctx.fillStyle = '#ffcc00';
-      ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
-      
-      // Show flash effect
-      flash.style.opacity = '1';
-      
-      // Play capture sound
-      playCaptureSound();
-      
-      // Hide flash after delay
-      setTimeout(() => {
-        flash.style.opacity = '0';
-        
-        // Store the captured photo as data URL
-        const photoData = photoCanvas.toDataURL('image/jpeg', 0.9);
-        state.takenPhotos[state.currentPhotoIndex] = {
-          data: photoData,
-          label: currentPoseData.label,
-          poseId: currentPoseData.id
-        };
-        
-        // Update taken photos grid
-        updateTakenPhotosGrid();
-        
-        // Show captured photo
-        showCapturedPhoto();
-        
-        state.isCapturing = false;
-        updateCameraStatus('Photo captured!');
-        
-        // Auto-advance to next pose after 3 seconds if not the last one
-        if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
-          setTimeout(() => {
-            if (!state.isCapturing) {
-              navigateToNextPhoto();
-            }
-          }, 3000);
-        }
-        
-        // Update finish button
-        updateFinishButton();
-      }, 500);
-    };
-    
-    bgImage.onerror = function() {
-      console.error("Failed to load background image");
-      // Fallback: draw without background
-      takePhotoWithoutBackground();
-    };
-    
-    bgImage.src = currentPoseData.image;
+  // Load image helper function
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
   }
 
-  // Fallback function if background image fails to load
-  function takePhotoWithoutBackground() {
+  // Take photo from camera
+  async function takePhoto() {
+    state.isCapturing = true;
+    updateCameraStatus('Capturing...');
+
     const videoWidth = cameraFeed.videoWidth;
     const videoHeight = cameraFeed.videoHeight;
+
+    photoCanvas.width = videoWidth;
+    photoCanvas.height = videoHeight;
+
     const ctx = photoCanvas.getContext('2d');
+    ctx.clearRect(0, 0, videoWidth, videoHeight);
+
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-    
-    // Apply mirror effect if enabled
+
+    /* ===============================
+       1️⃣ DRAW BACKGROUND FIRST
+       =============================== */
+    if (currentPoseData?.image) {
+      const bgImage = await loadImage(currentPoseData.image);
+
+      ctx.drawImage(
+        bgImage,
+        0,
+        0,
+        videoWidth,
+        videoHeight
+      );
+    }
+
+    /* ===============================
+       2️⃣ DRAW CAMERA ON TOP
+       =============================== */
+    ctx.save();
+
     if (state.isMirrored) {
       ctx.translate(videoWidth, 0);
       ctx.scale(-1, 1);
     }
-    
-    // Draw the camera feed
+
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-    
-    // Reset transformation
-    if (state.isMirrored) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-    
-    // Add pose label to photo
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
-    
+    ctx.restore();
+
+    /* ===============================
+       3️⃣ ADD TEXT OVERLAY
+       =============================== */
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(0, videoHeight - 70, videoWidth, 70);
+
     ctx.font = 'bold 24px Poppins';
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
-    
+    ctx.fillText(
+      currentPoseData.label,
+      videoWidth / 2,
+      videoHeight - 35
+    );
+
     ctx.font = '16px Poppins';
     ctx.fillStyle = '#ffcc00';
-    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
-    
-    // Continue with the rest of the photo capture process...
+    ctx.fillText(
+      `Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`,
+      videoWidth / 2,
+      videoHeight - 12
+    );
+
+    /* ===============================
+       4️⃣ FLASH + SAVE
+       =============================== */
     flash.style.opacity = '1';
     playCaptureSound();
-    
+
     setTimeout(() => {
       flash.style.opacity = '0';
-      
-      const photoData = photoCanvas.toDataURL('image/jpeg', 0.9);
+
+      const photoData = photoCanvas.toDataURL('image/jpeg', 0.95);
+
       state.takenPhotos[state.currentPhotoIndex] = {
         data: photoData,
         label: currentPoseData.label,
         poseId: currentPoseData.id
       };
-      
+
       updateTakenPhotosGrid();
       showCapturedPhoto();
+
       state.isCapturing = false;
       updateCameraStatus('Photo captured!');
-      
-      if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
-        setTimeout(() => {
-          if (!state.isCapturing) {
-            navigateToNextPhoto();
-          }
-        }, 3000);
-      }
-      
       updateFinishButton();
-    }, 500);
+    }, 400);
   }
 
   // Play capture sound
   function playCaptureSound() {
+    // Create a simple beep sound using Web Audio API
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
@@ -896,9 +832,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCameraStatus('Ready to capture');
       }
       
-      // Show pose info overlay if enabled
+      // Show pose overlay if enabled
       if (state.showPoseOverlay) {
-        showPoseInfoOverlay();
+        showPoseOverlay();
       }
     }
   }
@@ -915,9 +851,9 @@ document.addEventListener('DOMContentLoaded', function() {
       updateCameraStatus('Ready to capture');
     }
     
-    // Show pose info overlay if enabled
+    // Show pose overlay if enabled
     if (state.showPoseOverlay) {
-      showPoseInfoOverlay();
+      showPoseOverlay();
     }
     
     // Update finish button
@@ -998,9 +934,9 @@ document.addEventListener('DOMContentLoaded', function() {
       updateCameraStatus('Ready to capture');
     }
     
-    // Show pose info overlay if enabled
+    // Show pose overlay if enabled
     if (state.showPoseOverlay) {
-      showPoseInfoOverlay();
+      showPoseOverlay();
     }
   }
 
