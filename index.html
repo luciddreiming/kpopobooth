@@ -82,50 +82,58 @@
       
       <div class="camera-container">
         <div class="camera-frame">
-          <!-- Pose Background -->
-          <div class="pose-background" id="pose-background"></div>
-          
-          <!-- Camera Feed Overlay -->
-          <div class="camera-feed-overlay">
-            <div class="camera-feed-container">
-              <!-- Real Camera Feed -->
-              <div class="camera-viewfinder">
-                <video id="cameraFeed" autoplay playsinline></video>
-                
-                <!-- Grid overlay for alignment -->
-                <div class="alignment-grid">
-                  <div class="grid-line vertical center"></div>
-                  <div class="grid-line horizontal center"></div>
-                  <div class="grid-circle"></div>
-                </div>
-                
-                <!-- Camera permission notice -->
-                <div class="camera-permission" id="cameraPermission">
-                  <i class="fas fa-camera"></i>
-                  <h3>Camera Access Required</h3>
-                  <p>Please allow camera access to use the photo booth</p>
-                  <button id="requestCamera" class="btn-primary">
-                    Enable Camera
-                  </button>
-                </div>
-                
-                <!-- Camera error message -->
-                <div class="camera-error" id="cameraError" style="display: none;">
-                  <i class="fas fa-exclamation-triangle"></i>
-                  <h3>Camera Error</h3>
-                  <p id="errorMessage">Unable to access camera</p>
-                  <button id="retryCamera" class="btn-primary">
-                    Try Again
-                  </button>
-                </div>
-              </div>
+          <!-- Real Camera Feed -->
+          <div class="camera-viewfinder">
+            <video id="cameraFeed" autoplay playsinline></video>
+            
+            <!-- Pose Overlay (Transparent pose image overlay) -->
+            <div id="poseOverlay" class="pose-overlay">
+              <img id="posePreview" class="pose-overlay-image" src="" alt="Pose Preview">
             </div>
-          </div>
-          
-          <!-- Pose info overlay -->
-          <div class="pose-info-overlay" id="pose-info-overlay">
-            <div class="pose-reference-label" id="current-pose-label">Your Pose</div>
-            <div class="pose-reference-instruction" id="current-pose-instruction">Look at the camera and smile!</div>
+            
+            <!-- Pose reference overlay -->
+            <div class="pose-reference" id="current-pose-reference">
+              <div class="pose-reference-label">Your Pose</div>
+              <img src="" alt="Pose reference" class="pose-reference-image">
+              <div class="pose-reference-instruction">Look at the camera and smile!</div>
+            </div>
+            
+            <!-- Grid overlay for alignment -->
+            <div class="alignment-grid">
+              <div class="grid-line vertical center"></div>
+              <div class="grid-line horizontal center"></div>
+              <div class="grid-circle"></div>
+            </div>
+            
+            <!-- Camera permission notice -->
+            <div class="camera-permission" id="cameraPermission">
+              <i class="fas fa-camera"></i>
+              <h3>Camera Access Required</h3>
+              <p>Please allow camera access to use the photo booth</p>
+              <button id="requestCamera" class="btn-primary">
+                Enable Camera
+              </button>
+            </div>
+            
+            <!-- Camera error message -->
+            <div class="camera-error" id="cameraError" style="display: none;">
+              <i class="fas fa-exclamation-triangle"></i>
+              <h3>Camera Error</h3>
+              <p id="errorMessage">Unable to access camera</p>
+              <button id="retryCamera" class="btn-primary">
+                Try Again
+              </button>
+            </div>
+            
+            <!-- Pose Opacity Controls -->
+            <div class="pose-opacity-controls">
+              <label>
+                <i class="fas fa-adjust"></i>
+                Pose Opacity:
+                <span id="opacityValue">50%</span>
+              </label>
+              <input type="range" id="poseOpacitySlider" min="10" max="100" value="50" step="5">
+            </div>
           </div>
           
           <!-- Countdown overlay -->
@@ -207,7 +215,7 @@
               <i class="fas fa-exchange-alt"></i> Mirror
             </button>
             <button id="togglePoseOverlay" class="btn-option active" title="Toggle pose overlay">
-              <i class="fas fa-theater-masks"></i> Pose Background
+              <i class="fas fa-theater-masks"></i> Pose Guide
             </button>
           </div>
         </div>
