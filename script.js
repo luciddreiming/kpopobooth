@@ -631,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Take photo from camera
+  // Take photo from camera (UPDATED VERSION)
   async function takePhoto() {
     state.isCapturing = true;
     updateCameraStatus('Capturing...');
