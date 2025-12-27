@@ -350,6 +350,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  display: none;
 }
 
 .pose-overlay-image {
@@ -357,7 +358,6 @@ button {
   height: 100%;
   object-fit: cover;
   opacity: 0.5;
-  mix-blend-mode: multiply;
 }
 
 /* Pose opacity controls */
