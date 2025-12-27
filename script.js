@@ -588,6 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (state.cameraInitialized) {
       currentPoseReference.classList.add('active');
       currentPoseReference.style.display = 'flex';
+      poseOverlay.style.display = 'flex';
       
       // Update overlay opacity
       updatePoseOverlayOpacity();
@@ -598,6 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function hidePoseOverlay() {
     currentPoseReference.classList.remove('active');
     currentPoseReference.style.display = 'none';
+    poseOverlay.style.display = 'none';
   }
 
   // Update pose overlay opacity
@@ -675,14 +677,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Draw pose overlay on top of the photo
     if (state.showPoseOverlay) {
-      // Save the current state
-      ctx.save();
-      
-      // Reset transformation for pose image
-      if (state.isMirrored) {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-      }
-      
       // Create pose image
       const poseImg = new Image();
       poseImg.src = state.selectedPoses[state.currentPhotoIndex].image;
@@ -690,34 +684,44 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Draw pose image once it's loaded
       poseImg.onload = function() {
+        // Reset transformation for pose image
+        if (state.isMirrored) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        }
+        
         // Apply opacity for the pose image
         ctx.globalAlpha = state.poseOverlayOpacity;
         
-        // Draw pose image centered and scaled to fit
+        // Calculate aspect ratios
         const poseAspect = poseImg.width / poseImg.height;
         const canvasAspect = videoWidth / videoHeight;
         let drawWidth, drawHeight, drawX, drawY;
         
+        // Calculate dimensions to fill the canvas
         if (poseAspect > canvasAspect) {
-          // Pose is wider than canvas
+          // Pose is wider than canvas - fit to width
           drawWidth = videoWidth;
           drawHeight = videoWidth / poseAspect;
           drawX = 0;
           drawY = (videoHeight - drawHeight) / 2;
         } else {
-          // Pose is taller than canvas
+          // Pose is taller than canvas - fit to height
           drawHeight = videoHeight;
           drawWidth = videoHeight * poseAspect;
           drawX = (videoWidth - drawWidth) / 2;
           drawY = 0;
         }
         
+        // Draw the pose image to fill the canvas
         ctx.drawImage(poseImg, drawX, drawY, drawWidth, drawHeight);
         
-        // Restore context
-        ctx.restore();
-        
         // Complete photo capture process
+        completePhotoCapture();
+      };
+      
+      // Handle image loading error
+      poseImg.onerror = function() {
+        console.error('Failed to load pose image');
         completePhotoCapture();
       };
     } else {
@@ -732,6 +736,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoWidth = cameraFeed.videoWidth;
     const videoHeight = cameraFeed.videoHeight;
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+    
+    // Reset transformation for text
+    if (state.isMirrored) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    
+    // Reset global alpha
+    ctx.globalAlpha = 1;
     
     // Add pose label to photo
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
