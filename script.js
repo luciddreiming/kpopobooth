@@ -657,12 +657,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Main photo capture function
   function takePhoto() {
-    // Use the blend method with background at 100% opacity
-    takePhotoBlend();
+    // Use the corrected method for capturing photo with background
+    takePhotoCorrected();
   }
 
-  // Photo capture using blend mode with background at 100% opacity
-  function takePhotoBlend() {
+  // Fixed photo capture - properly combines camera feed with background
+  function takePhotoCorrected() {
     state.isCapturing = true;
     updateCameraStatus('Capturing...');
     
@@ -678,56 +678,55 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear the canvas first
     ctx.clearRect(0, 0, videoWidth, videoHeight);
     
-    // Draw the pose background image first - AT FULL OPACITY (100%)
+    // Get current pose data and image
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
+    // Draw pose background image first if it's loaded
     if (poseImg && poseImg.complete) {
-      // Draw the pose background to cover entire canvas
+      // Calculate the best way to fit the pose image onto the canvas
+      // while maintaining aspect ratio
       const poseAspect = poseImg.width / poseImg.height;
       const canvasAspect = videoWidth / videoHeight;
       
-      let sx, sy, sWidth, sHeight;
+      let drawWidth, drawHeight, offsetX, offsetY;
       
       if (poseAspect > canvasAspect) {
-        // Pose image is wider relative to its height than the canvas
-        sWidth = poseImg.height * canvasAspect;
-        sHeight = poseImg.height;
-        sx = (poseImg.width - sWidth) / 2;
-        sy = 0;
+        // Pose is wider relative to canvas - fit to height
+        drawHeight = videoHeight;
+        drawWidth = drawHeight * poseAspect;
+        offsetX = (videoWidth - drawWidth) / 2;
+        offsetY = 0;
       } else {
-        // Pose image is taller relative to its width than the canvas
-        sWidth = poseImg.width;
-        sHeight = sWidth / canvasAspect;
-        sx = 0;
-        sy = (poseImg.height - sHeight) / 2;
+        // Pose is taller relative to canvas - fit to width
+        drawWidth = videoWidth;
+        drawHeight = drawWidth / poseAspect;
+        offsetX = 0;
+        offsetY = (videoHeight - drawHeight) / 2;
       }
       
-      // Draw the pose background at 100% opacity
+      // Draw the pose background at 100% opacity, centered
       ctx.globalAlpha = 1.0;
       ctx.drawImage(
         poseImg,
-        sx, sy, sWidth, sHeight,
-        0, 0, videoWidth, videoHeight
+        0, 0, poseImg.width, poseImg.height,
+        offsetX, offsetY, drawWidth, drawHeight
       );
     }
     
     // Save the current context state
     ctx.save();
     
+    // Apply mirror effect if needed
     if (state.isMirrored) {
-      // Flip the context horizontally for mirror effect
       ctx.translate(videoWidth, 0);
       ctx.scale(-1, 1);
     }
     
-    // Use 'source-over' blend mode to overlay the camera feed on top
-    ctx.globalCompositeOperation = 'source-over';
-    
-    // Set opacity for the camera feed to be fully visible
+    // Reset alpha for camera feed
     ctx.globalAlpha = 1.0;
     
-    // Draw the camera feed
+    // Draw the camera feed on top of the background
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
     
     // Restore the context state
