@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
     resolution: 'medium',
     cameraInitialized: false,
     showPoseOverlay: true,
-    poseOverlayOpacity: 0.5, // Default opacity for pose overlay
     loadedPoseImages: {} // Cache for loaded pose images
   };
 
@@ -82,8 +81,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const currentPoseName = document.getElementById('current-pose-name');
   const poseInstruction = document.getElementById('pose-instruction');
   const statusDot = document.getElementById('statusDot');
-  const opacitySlider = document.getElementById('poseOpacitySlider');
-  const opacityValue = document.getElementById('opacityValue');
   const poseOverlay = document.getElementById('poseOverlay');
   const posePreview = document.getElementById('posePreview');
 
@@ -261,11 +258,6 @@ document.addEventListener('DOMContentLoaded', function() {
     state.countdownActive = false;
     state.cameraInitialized = false;
     state.showPoseOverlay = true;
-    state.poseOverlayOpacity = 0.5;
-    
-    // Update opacity slider
-    opacitySlider.value = state.poseOverlayOpacity * 100;
-    opacityValue.textContent = `${Math.round(state.poseOverlayOpacity * 100)}%`;
     
     // Update camera page
     updateCameraPage();
@@ -615,9 +607,6 @@ document.addEventListener('DOMContentLoaded', function() {
       currentPoseReference.classList.add('active');
       currentPoseReference.style.display = 'flex';
       poseOverlay.style.display = 'flex';
-      
-      // Update overlay opacity
-      updatePoseOverlayOpacity();
     }
   }
 
@@ -626,18 +615,6 @@ document.addEventListener('DOMContentLoaded', function() {
     currentPoseReference.classList.remove('active');
     currentPoseReference.style.display = 'none';
     poseOverlay.style.display = 'none';
-  }
-
-  // Update pose overlay opacity
-  function updatePoseOverlayOpacity() {
-    poseOverlay.style.opacity = state.poseOverlayOpacity;
-  }
-
-  // Change pose overlay opacity
-  function changePoseOpacity(value) {
-    state.poseOverlayOpacity = value / 100;
-    opacityValue.textContent = `${value}%`;
-    updatePoseOverlayOpacity();
   }
 
   // Start the photo capture process
@@ -677,172 +654,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }, 1000);
   }
-// Alternative: Use composition mode to blend images
-function takePhotoBlend() {
-  state.isCapturing = true;
-  updateCameraStatus('Capturing...');
-  
-  // Set canvas dimensions to match video feed
-  const videoWidth = cameraFeed.videoWidth;
-  const videoHeight = cameraFeed.videoHeight;
-  photoCanvas.width = videoWidth;
-  photoCanvas.height = videoHeight;
-  
-  // Get canvas context
-  const ctx = photoCanvas.getContext('2d');
-  
-  // Clear the canvas first
-  ctx.clearRect(0, 0, videoWidth, videoHeight);
-  
-  // Draw the pose background image first - AT FULL OPACITY
-  const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-  const poseImg = state.loadedPoseImages[currentPoseData.id];
-  
-  if (poseImg && poseImg.complete) {
-    // Draw the pose background to cover entire canvas
-    const poseAspect = poseImg.width / poseImg.height;
-    const canvasAspect = videoWidth / videoHeight;
-    
-    let sx, sy, sWidth, sHeight;
-    
-    if (poseAspect > canvasAspect) {
-      // Pose image is wider relative to its height than the canvas
-      sWidth = poseImg.height * canvasAspect;
-      sHeight = poseImg.height;
-      sx = (poseImg.width - sWidth) / 2;
-      sy = 0;
-    } else {
-      // Pose image is taller relative to its width than the canvas
-      sWidth = poseImg.width;
-      sHeight = sWidth / canvasAspect;
-      sx = 0;
-      sy = (poseImg.height - sHeight) / 2;
-    }
-    
-    // Draw the pose background at 100% opacity
-    ctx.globalAlpha = 1.0;
-    ctx.drawImage(
-      poseImg,
-      sx, sy, sWidth, sHeight,
-      0, 0, videoWidth, videoHeight
-    );
-  }
-  
-  // Save the current context state
-  ctx.save();
-  
-  if (state.isMirrored) {
-    // Flip the context horizontally for mirror effect
-    ctx.translate(videoWidth, 0);
-    ctx.scale(-1, 1);
-  }
-  
-  // Use 'destination-over' blend mode to keep background fully visible
-  // and overlay the camera feed on top
-  ctx.globalCompositeOperation = 'source-over';
-  
-  // Set appropriate opacity for the camera feed to blend with background
-  // Keep this at 1.0 to make the user fully visible on top of background
-  ctx.globalAlpha = 1.0;
-  
-  // Draw the camera feed
-  ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-  
-  // Restore the context state
-  ctx.restore();
-  
-  // Complete photo capture process
-  completePhotoCapture();
-}
-
-  // Alternative: Simple overlay method without chroma key
-  function takePhotoSimple() {
-    state.isCapturing = true;
-    updateCameraStatus('Capturing...');
-    
-    // Set canvas dimensions to match video feed
-    const videoWidth = cameraFeed.videoWidth;
-    const videoHeight = cameraFeed.videoHeight;
-    photoCanvas.width = videoWidth;
-    photoCanvas.height = videoHeight;
-    
-    // Get canvas context
-    const ctx = photoCanvas.getContext('2d');
-    
-    // Clear the canvas first
-    ctx.clearRect(0, 0, videoWidth, videoHeight);
-    
-    // Draw the pose background image first
-    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-    const poseImg = state.loadedPoseImages[currentPoseData.id];
-    
-    if (poseImg && poseImg.complete) {
-      // Draw the pose background to cover entire canvas
-      const poseAspect = poseImg.width / poseImg.height;
-      const canvasAspect = videoWidth / videoHeight;
-      
-      let sx, sy, sWidth, sHeight;
-      
-      if (poseAspect > canvasAspect) {
-        // Pose image is wider relative to its height than the canvas
-        sWidth = poseImg.height * canvasAspect;
-        sHeight = poseImg.height;
-        sx = (poseImg.width - sWidth) / 2;
-        sy = 0;
-      } else {
-        // Pose image is taller relative to its width than the canvas
-        sWidth = poseImg.width;
-        sHeight = poseImg.width / canvasAspect;
-        sx = 0;
-        sy = (poseImg.height - sHeight) / 2;
-      }
-      
-      // Draw the pose background
-      ctx.drawImage(
-        poseImg,
-        sx, sy, sWidth, sHeight,
-        0, 0, videoWidth, videoHeight
-      );
-    }
-    
-    // Create a temporary canvas for the user's face
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = videoWidth;
-    tempCanvas.height = videoHeight;
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    // Save the current context state
-    tempCtx.save();
-    
-    if (state.isMirrored) {
-      // Flip the context horizontally for mirror effect
-      tempCtx.translate(videoWidth, 0);
-      tempCtx.scale(-1, 1);
-    }
-    
-    // Draw the camera feed to temp canvas
-    tempCtx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-    tempCtx.restore();
-    
-    // Apply circular mask to get just the face area
-    tempCtx.globalCompositeOperation = 'destination-in';
-    tempCtx.beginPath();
-    
-    // Calculate face position (center of image for now)
-    const faceX = videoWidth / 2;
-    const faceY = videoHeight / 2;
-    const faceRadius = Math.min(videoWidth, videoHeight) * 0.3; // 30% of smaller dimension
-    
-    tempCtx.arc(faceX, faceY, faceRadius, 0, Math.PI * 2);
-    tempCtx.closePath();
-    tempCtx.fill();
-    
-    // Draw the masked face onto the main canvas
-    ctx.drawImage(tempCanvas, 0, 0);
-    
-    // Complete photo capture process
-    completePhotoCapture();
-  }
 
   // Alternative: Use composition mode to blend images
   function takePhotoBlend() {
@@ -861,7 +672,7 @@ function takePhotoBlend() {
     // Clear the canvas first
     ctx.clearRect(0, 0, videoWidth, videoHeight);
     
-    // Draw the pose background image first
+    // Draw the pose background image first - AT FULL OPACITY
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
@@ -886,7 +697,8 @@ function takePhotoBlend() {
         sy = (poseImg.height - sHeight) / 2;
       }
       
-      // Draw the pose background
+      // Draw the pose background at 100% opacity
+      ctx.globalAlpha = 1.0;
       ctx.drawImage(
         poseImg,
         sx, sy, sWidth, sHeight,
@@ -903,11 +715,13 @@ function takePhotoBlend() {
       ctx.scale(-1, 1);
     }
     
-    // Use 'lighten' blend mode to keep both images visible
-    ctx.globalCompositeOperation = 'lighten';
+    // Use 'destination-over' blend mode to keep background fully visible
+    // and overlay the camera feed on top
+    ctx.globalCompositeOperation = 'source-over';
     
-    // Set opacity for the camera feed to blend with background
-    ctx.globalAlpha = 0.7;
+    // Set appropriate opacity for the camera feed to blend with background
+    // Keep this at 1.0 to make the user fully visible on top of background
+    ctx.globalAlpha = 1.0;
     
     // Draw the camera feed
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
@@ -1273,11 +1087,6 @@ function takePhotoBlend() {
   resolutionSelect.addEventListener('change', changeResolution);
   savePhotoBtn.addEventListener('click', savePhoto);
   usePhotoBtn.addEventListener('click', usePhoto);
-  
-  // Pose opacity slider
-  opacitySlider.addEventListener('input', (e) => {
-    changePoseOpacity(e.target.value);
-  });
 
   // Initialize the application
   initPoseSelection();
