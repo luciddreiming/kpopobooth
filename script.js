@@ -655,7 +655,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  // Alternative: Use composition mode to blend images
+  // Main photo capture function
+  function takePhoto() {
+    // Use the blend method with background at 100% opacity
+    takePhotoBlend();
+  }
+
+  // Photo capture using blend mode with background at 100% opacity
   function takePhotoBlend() {
     state.isCapturing = true;
     updateCameraStatus('Capturing...');
@@ -672,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear the canvas first
     ctx.clearRect(0, 0, videoWidth, videoHeight);
     
-    // Draw the pose background image first - AT FULL OPACITY
+    // Draw the pose background image first - AT FULL OPACITY (100%)
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
@@ -715,12 +721,10 @@ document.addEventListener('DOMContentLoaded', function() {
       ctx.scale(-1, 1);
     }
     
-    // Use 'destination-over' blend mode to keep background fully visible
-    // and overlay the camera feed on top
+    // Use 'source-over' blend mode to overlay the camera feed on top
     ctx.globalCompositeOperation = 'source-over';
     
-    // Set appropriate opacity for the camera feed to blend with background
-    // Keep this at 1.0 to make the user fully visible on top of background
+    // Set opacity for the camera feed to be fully visible
     ctx.globalAlpha = 1.0;
     
     // Draw the camera feed
@@ -731,12 +735,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Complete photo capture process
     completePhotoCapture();
-  }
-
-  // Main photo capture function - choose which method to use
-  function takePhoto() {
-    // Try the blend method first (usually works best)
-    takePhotoBlend();
   }
 
   // Complete the photo capture process
