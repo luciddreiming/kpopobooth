@@ -714,7 +714,7 @@ function takePhotoBlend() {
     ctx.scale(-1, 1);
   }
 
-  ctx.globalAlpha = 0.85; // 🔥 ONLY camera feed is semi-transparent
+  ctx.globalAlpha = 0.35; // 🔥 ONLY camera feed is semi-transparent
   ctx.globalCompositeOperation = 'source-over';
 
   ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
