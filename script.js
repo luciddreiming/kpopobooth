@@ -657,12 +657,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Main photo capture function
   function takePhoto() {
-    // Use the corrected method for capturing photo with background
-    takePhotoCorrected();
-  }
-
-  // Fixed photo capture - properly combines camera feed with background
-  function takePhotoCorrected() {
     state.isCapturing = true;
     updateCameraStatus('Capturing...');
     
@@ -678,55 +672,58 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear the canvas first
     ctx.clearRect(0, 0, videoWidth, videoHeight);
     
-    // Get current pose data and image
+    // Draw the pose background image first - AT FULL OPACITY
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
-    // Draw pose background image first if it's loaded
     if (poseImg && poseImg.complete) {
-      // Calculate the best way to fit the pose image onto the canvas
-      // while maintaining aspect ratio
+      // Draw the pose background to cover entire canvas
       const poseAspect = poseImg.width / poseImg.height;
       const canvasAspect = videoWidth / videoHeight;
       
-      let drawWidth, drawHeight, offsetX, offsetY;
+      let sx, sy, sWidth, sHeight;
       
       if (poseAspect > canvasAspect) {
-        // Pose is wider relative to canvas - fit to height
-        drawHeight = videoHeight;
-        drawWidth = drawHeight * poseAspect;
-        offsetX = (videoWidth - drawWidth) / 2;
-        offsetY = 0;
+        // Pose image is wider relative to its height than the canvas
+        sWidth = poseImg.height * canvasAspect;
+        sHeight = poseImg.height;
+        sx = (poseImg.width - sWidth) / 2;
+        sy = 0;
       } else {
-        // Pose is taller relative to canvas - fit to width
-        drawWidth = videoWidth;
-        drawHeight = drawWidth / poseAspect;
-        offsetX = 0;
-        offsetY = (videoHeight - drawHeight) / 2;
+        // Pose image is taller relative to its width than the canvas
+        sWidth = poseImg.width;
+        sHeight = sWidth / canvasAspect;
+        sx = 0;
+        sy = (poseImg.height - sHeight) / 2;
       }
       
-      // Draw the pose background at 100% opacity, centered
+      // Draw the pose background at 100% opacity
       ctx.globalAlpha = 1.0;
       ctx.drawImage(
         poseImg,
-        0, 0, poseImg.width, poseImg.height,
-        offsetX, offsetY, drawWidth, drawHeight
+        sx, sy, sWidth, sHeight,
+        0, 0, videoWidth, videoHeight
       );
     }
     
     // Save the current context state
     ctx.save();
     
-    // Apply mirror effect if needed
     if (state.isMirrored) {
+      // Flip the context horizontally for mirror effect
       ctx.translate(videoWidth, 0);
       ctx.scale(-1, 1);
     }
     
-    // Reset alpha for camera feed
+    // Use 'destination-over' blend mode to keep background fully visible
+    // and overlay the camera feed on top
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Set appropriate opacity for the camera feed to blend with background
+    // Keep this at 1.0 to make the user fully visible on top of background
     ctx.globalAlpha = 1.0;
     
-    // Draw the camera feed on top of the background
+    // Draw the camera feed
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
     
     // Restore the context state
