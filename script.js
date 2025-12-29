@@ -655,7 +655,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-// Alternative: Use composition mode to blend images (FIXED)
 function takePhotoBlend() {
   state.isCapturing = true;
   updateCameraStatus('Capturing...');
@@ -666,18 +665,16 @@ function takePhotoBlend() {
   photoCanvas.height = videoHeight;
 
   const ctx = photoCanvas.getContext('2d');
-
-  // Clear canvas
   ctx.clearRect(0, 0, videoWidth, videoHeight);
-
-  // -------------------------------
-  // 1️⃣ DRAW BACKGROUND (100% OPACITY)
-  // -------------------------------
-  ctx.globalAlpha = 1;
-  ctx.globalCompositeOperation = 'source-over';
 
   const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
   const poseImg = state.loadedPoseImages[currentPoseData.id];
+
+  // ===============================
+  // 1️⃣ BACKGROUND — DRAW TWICE
+  // ===============================
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
 
   if (poseImg && poseImg.complete) {
     const poseAspect = poseImg.width / poseImg.height;
@@ -697,16 +694,14 @@ function takePhotoBlend() {
       sy = (poseImg.height - sHeight) / 2;
     }
 
-    ctx.drawImage(
-      poseImg,
-      sx, sy, sWidth, sHeight,
-      0, 0, videoWidth, videoHeight
-    );
+    // 🔥 Draw background twice for clarity
+    ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
+    ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
   }
 
-  // -------------------------------
-  // 2️⃣ DRAW CAMERA FEED (BLENDED)
-  // -------------------------------
+  // ===============================
+  // 2️⃣ USER CAMERA — UNTOUCHED
+  // ===============================
   ctx.save();
 
   if (state.isMirrored) {
@@ -714,16 +709,11 @@ function takePhotoBlend() {
     ctx.scale(-1, 1);
   }
 
-  ctx.globalAlpha = 0.35; // 🔥 ONLY camera feed is semi-transparent
-  ctx.globalCompositeOperation = 'source-over';
-
+  ctx.globalAlpha = 1; // ✅ user image NOT affected
   ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
 
   ctx.restore();
 
-  // -------------------------------
-  // FINISH
-  // -------------------------------
   completePhotoCapture();
 }
 
