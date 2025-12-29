@@ -678,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  // Take photo from camera
+  // Take photo from camera - UPDATED VERSION
   function takePhoto() {
     state.isCapturing = true;
     updateCameraStatus('Capturing...');
@@ -695,49 +695,41 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear the canvas first
     ctx.clearRect(0, 0, videoWidth, videoHeight);
     
-    // Draw pose background image first (covers entire canvas)
+    // Draw the pose background image first
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
     if (poseImg && poseImg.complete) {
-      // Apply opacity for the pose background
-      ctx.globalAlpha = 1;
-      
-      // Draw the pose background to cover entire canvas (no empty spaces)
-      // We'll use "cover" strategy to fill the entire canvas
+      // Draw the pose background to cover entire canvas
       const poseAspect = poseImg.width / poseImg.height;
       const canvasAspect = videoWidth / videoHeight;
       
-      let sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight;
+      let sx, sy, sWidth, sHeight;
       
       if (poseAspect > canvasAspect) {
         // Pose image is wider relative to its height than the canvas
-        // We need to crop the sides
         sWidth = poseImg.height * canvasAspect;
         sHeight = poseImg.height;
         sx = (poseImg.width - sWidth) / 2;
         sy = 0;
       } else {
         // Pose image is taller relative to its width than the canvas
-        // We need to crop the top and bottom
         sWidth = poseImg.width;
         sHeight = poseImg.width / canvasAspect;
         sx = 0;
         sy = (poseImg.height - sHeight) / 2;
       }
       
-      // Draw the pose background to fill the entire canvas
+      // Draw the pose background
       ctx.drawImage(
         poseImg,
-        sx, sy, sWidth, sHeight, // Source rectangle (cropped from pose image)
-        0, 0, videoWidth, videoHeight // Destination rectangle (entire canvas)
+        sx, sy, sWidth, sHeight,
+        0, 0, videoWidth, videoHeight
       );
-      
-      // Reset global alpha
-      ctx.globalAlpha = 1;
     }
     
     // Draw video frame to canvas on top of the background
+    // We need to apply green screen effect to keep both images visible
     // Save the current context state
     ctx.save();
     
@@ -747,7 +739,203 @@ document.addEventListener('DOMContentLoaded', function() {
       ctx.scale(-1, 1);
     }
     
-    // Draw the camera feed (user face) on top of the background
+    // Draw the camera feed
+    ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+    
+    // Restore the context state
+    ctx.restore();
+    
+    // Apply transparency effect to merge both images
+    // Get the image data from canvas
+    const imageData = ctx.getImageData(0, 0, videoWidth, videoHeight);
+    const data = imageData.data;
+    
+    // Simple chroma key effect to make background more visible
+    // We'll reduce opacity of skin tones to show background through
+    for (let i = 0; i < data.length; i += 4) {
+      const red = data[i];
+      const green = data[i + 1];
+      const blue = data[i + 2];
+      
+      // Detect skin tones (adjust these values as needed)
+      const isSkinTone = (
+        red > 100 && red < 255 &&
+        green > 50 && green < 200 &&
+        blue > 0 && blue < 150 &&
+        red > green && red > blue
+      );
+      
+      if (isSkinTone) {
+        // Keep skin tones mostly opaque
+        // data[i + 3] = data[i + 3] * 0.9; // 90% opacity for skin
+      } else {
+        // Make non-skin areas more transparent to show background
+        data[i + 3] = data[i + 3] * 0.3; // 30% opacity for background
+      }
+    }
+    
+    // Put the modified image data back
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Complete photo capture process
+    completePhotoCapture();
+  }
+
+  // Alternative: Simple overlay method without chroma key
+  function takePhotoSimple() {
+    state.isCapturing = true;
+    updateCameraStatus('Capturing...');
+    
+    // Set canvas dimensions to match video feed
+    const videoWidth = cameraFeed.videoWidth;
+    const videoHeight = cameraFeed.videoHeight;
+    photoCanvas.width = videoWidth;
+    photoCanvas.height = videoHeight;
+    
+    // Get canvas context
+    const ctx = photoCanvas.getContext('2d');
+    
+    // Clear the canvas first
+    ctx.clearRect(0, 0, videoWidth, videoHeight);
+    
+    // Draw the pose background image first
+    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+    const poseImg = state.loadedPoseImages[currentPoseData.id];
+    
+    if (poseImg && poseImg.complete) {
+      // Draw the pose background to cover entire canvas
+      const poseAspect = poseImg.width / poseImg.height;
+      const canvasAspect = videoWidth / videoHeight;
+      
+      let sx, sy, sWidth, sHeight;
+      
+      if (poseAspect > canvasAspect) {
+        // Pose image is wider relative to its height than the canvas
+        sWidth = poseImg.height * canvasAspect;
+        sHeight = poseImg.height;
+        sx = (poseImg.width - sWidth) / 2;
+        sy = 0;
+      } else {
+        // Pose image is taller relative to its width than the canvas
+        sWidth = poseImg.width;
+        sHeight = poseImg.width / canvasAspect;
+        sx = 0;
+        sy = (poseImg.height - sHeight) / 2;
+      }
+      
+      // Draw the pose background
+      ctx.drawImage(
+        poseImg,
+        sx, sy, sWidth, sHeight,
+        0, 0, videoWidth, videoHeight
+      );
+    }
+    
+    // Create a temporary canvas for the user's face
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = videoWidth;
+    tempCanvas.height = videoHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Save the current context state
+    tempCtx.save();
+    
+    if (state.isMirrored) {
+      // Flip the context horizontally for mirror effect
+      tempCtx.translate(videoWidth, 0);
+      tempCtx.scale(-1, 1);
+    }
+    
+    // Draw the camera feed to temp canvas
+    tempCtx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+    tempCtx.restore();
+    
+    // Apply circular mask to get just the face area
+    tempCtx.globalCompositeOperation = 'destination-in';
+    tempCtx.beginPath();
+    
+    // Calculate face position (center of image for now)
+    const faceX = videoWidth / 2;
+    const faceY = videoHeight / 2;
+    const faceRadius = Math.min(videoWidth, videoHeight) * 0.3; // 30% of smaller dimension
+    
+    tempCtx.arc(faceX, faceY, faceRadius, 0, Math.PI * 2);
+    tempCtx.closePath();
+    tempCtx.fill();
+    
+    // Draw the masked face onto the main canvas
+    ctx.drawImage(tempCanvas, 0, 0);
+    
+    // Complete photo capture process
+    completePhotoCapture();
+  }
+
+  // Alternative: Use composition mode to blend images
+  function takePhotoBlend() {
+    state.isCapturing = true;
+    updateCameraStatus('Capturing...');
+    
+    // Set canvas dimensions to match video feed
+    const videoWidth = cameraFeed.videoWidth;
+    const videoHeight = cameraFeed.videoHeight;
+    photoCanvas.width = videoWidth;
+    photoCanvas.height = videoHeight;
+    
+    // Get canvas context
+    const ctx = photoCanvas.getContext('2d');
+    
+    // Clear the canvas first
+    ctx.clearRect(0, 0, videoWidth, videoHeight);
+    
+    // Draw the pose background image first
+    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+    const poseImg = state.loadedPoseImages[currentPoseData.id];
+    
+    if (poseImg && poseImg.complete) {
+      // Draw the pose background to cover entire canvas
+      const poseAspect = poseImg.width / poseImg.height;
+      const canvasAspect = videoWidth / videoHeight;
+      
+      let sx, sy, sWidth, sHeight;
+      
+      if (poseAspect > canvasAspect) {
+        // Pose image is wider relative to its height than the canvas
+        sWidth = poseImg.height * canvasAspect;
+        sHeight = poseImg.height;
+        sx = (poseImg.width - sWidth) / 2;
+        sy = 0;
+      } else {
+        // Pose image is taller relative to its width than the canvas
+        sWidth = poseImg.width;
+        sHeight = sWidth / canvasAspect;
+        sx = 0;
+        sy = (poseImg.height - sHeight) / 2;
+      }
+      
+      // Draw the pose background
+      ctx.drawImage(
+        poseImg,
+        sx, sy, sWidth, sHeight,
+        0, 0, videoWidth, videoHeight
+      );
+    }
+    
+    // Save the current context state
+    ctx.save();
+    
+    if (state.isMirrored) {
+      // Flip the context horizontally for mirror effect
+      ctx.translate(videoWidth, 0);
+      ctx.scale(-1, 1);
+    }
+    
+    // Use 'lighten' blend mode to keep both images visible
+    ctx.globalCompositeOperation = 'lighten';
+    
+    // Set opacity for the camera feed to blend with background
+    ctx.globalAlpha = 0.7;
+    
+    // Draw the camera feed
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
     
     // Restore the context state
@@ -755,6 +943,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Complete photo capture process
     completePhotoCapture();
+  }
+
+  // Main photo capture function - choose which method to use
+  function takePhoto() {
+    // Try the blend method first (usually works best)
+    takePhotoBlend();
   }
 
   // Complete the photo capture process
