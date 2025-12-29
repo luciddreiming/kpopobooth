@@ -695,55 +695,63 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear the canvas first
     ctx.clearRect(0, 0, videoWidth, videoHeight);
     
-    // Draw video frame to canvas
+    // Draw pose background image first (covers entire canvas)
+    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+    const poseImg = state.loadedPoseImages[currentPoseData.id];
+    
+    if (poseImg && poseImg.complete) {
+      // Apply opacity for the pose background
+      ctx.globalAlpha = 1;
+      
+      // Draw the pose background to cover entire canvas (no empty spaces)
+      // We'll use "cover" strategy to fill the entire canvas
+      const poseAspect = poseImg.width / poseImg.height;
+      const canvasAspect = videoWidth / videoHeight;
+      
+      let sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight;
+      
+      if (poseAspect > canvasAspect) {
+        // Pose image is wider relative to its height than the canvas
+        // We need to crop the sides
+        sWidth = poseImg.height * canvasAspect;
+        sHeight = poseImg.height;
+        sx = (poseImg.width - sWidth) / 2;
+        sy = 0;
+      } else {
+        // Pose image is taller relative to its width than the canvas
+        // We need to crop the top and bottom
+        sWidth = poseImg.width;
+        sHeight = poseImg.width / canvasAspect;
+        sx = 0;
+        sy = (poseImg.height - sHeight) / 2;
+      }
+      
+      // Draw the pose background to fill the entire canvas
+      ctx.drawImage(
+        poseImg,
+        sx, sy, sWidth, sHeight, // Source rectangle (cropped from pose image)
+        0, 0, videoWidth, videoHeight // Destination rectangle (entire canvas)
+      );
+      
+      // Reset global alpha
+      ctx.globalAlpha = 1;
+    }
+    
+    // Draw video frame to canvas on top of the background
+    // Save the current context state
+    ctx.save();
+    
     if (state.isMirrored) {
+      // Flip the context horizontally for mirror effect
       ctx.translate(videoWidth, 0);
       ctx.scale(-1, 1);
     }
     
+    // Draw the camera feed (user face) on top of the background
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
     
-    // Draw pose overlay on top of the photo
-    if (state.showPoseOverlay && state.poseOverlayOpacity > 0) {
-      const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-      const poseImg = state.loadedPoseImages[currentPoseData.id];
-      
-      if (poseImg && poseImg.complete) {
-        // Reset transformation for pose image
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        
-        // Apply opacity for the pose image
-        ctx.globalAlpha = state.poseOverlayOpacity;
-        
-        // Calculate dimensions to fill the entire canvas
-        // We want to cover the entire canvas with the pose image
-        const poseAspect = poseImg.width / poseImg.height;
-        const canvasAspect = videoWidth / videoHeight;
-        
-        let drawWidth, drawHeight, drawX, drawY;
-        
-        // Cover strategy: make image cover the entire canvas (like background-size: cover)
-        if (canvasAspect > poseAspect) {
-          // Canvas is wider relative to its height than the pose image
-          drawHeight = videoHeight;
-          drawWidth = videoHeight * poseAspect;
-          drawX = (videoWidth - drawWidth) / 2;
-          drawY = 0;
-        } else {
-          // Canvas is taller relative to its width than the pose image
-          drawWidth = videoWidth;
-          drawHeight = videoWidth / poseAspect;
-          drawX = 0;
-          drawY = (videoHeight - drawHeight) / 2;
-        }
-        
-        // Draw the pose image
-        ctx.drawImage(poseImg, drawX, drawY, drawWidth, drawHeight);
-        
-        // Reset global alpha
-        ctx.globalAlpha = 1;
-      }
-    }
+    // Restore the context state
+    ctx.restore();
     
     // Complete photo capture process
     completePhotoCapture();
