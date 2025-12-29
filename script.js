@@ -655,7 +655,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-function takePhoto() {
+// Alternative: Use composition mode to blend images (FIXED)
+function takePhotoBlend() {
   state.isCapturing = true;
   updateCameraStatus('Capturing...');
 
@@ -665,45 +666,33 @@ function takePhoto() {
   photoCanvas.height = videoHeight;
 
   const ctx = photoCanvas.getContext('2d');
+
+  // Clear canvas
   ctx.clearRect(0, 0, videoWidth, videoHeight);
 
-  // ============================
-  // 1️⃣ DRAW CAMERA FIRST
-  // ============================
-  ctx.save();
-
-  if (state.isMirrored) {
-    ctx.translate(videoWidth, 0);
-    ctx.scale(-1, 1);
-  }
-
-  ctx.globalAlpha = 1.0;
+  // -------------------------------
+  // 1️⃣ DRAW BACKGROUND (100% OPACITY)
+  // -------------------------------
+  ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-  ctx.restore();
 
-  // ============================
-  // 2️⃣ DRAW BACKGROUND BEHIND
-  // ============================
-  const currentPose = state.selectedPoses[state.currentPhotoIndex];
-  const poseImg = state.loadedPoseImages[currentPose.id];
+  const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+  const poseImg = state.loadedPoseImages[currentPoseData.id];
 
   if (poseImg && poseImg.complete) {
-    ctx.globalCompositeOperation = 'destination-over';
-
     const poseAspect = poseImg.width / poseImg.height;
     const canvasAspect = videoWidth / videoHeight;
 
     let sx, sy, sWidth, sHeight;
 
     if (poseAspect > canvasAspect) {
+      sWidth = poseImg.height * canvasAspect;
       sHeight = poseImg.height;
-      sWidth = sHeight * canvasAspect;
       sx = (poseImg.width - sWidth) / 2;
       sy = 0;
     } else {
       sWidth = poseImg.width;
-      sHeight = sWidth / canvasAspect;
+      sHeight = poseImg.width / canvasAspect;
       sx = 0;
       sy = (poseImg.height - sHeight) / 2;
     }
@@ -715,12 +704,33 @@ function takePhoto() {
     );
   }
 
+  // -------------------------------
+  // 2️⃣ DRAW CAMERA FEED (BLENDED)
+  // -------------------------------
+  ctx.save();
+
+  if (state.isMirrored) {
+    ctx.translate(videoWidth, 0);
+    ctx.scale(-1, 1);
+  }
+
+  ctx.globalAlpha = 0.85; // 🔥 ONLY camera feed is semi-transparent
   ctx.globalCompositeOperation = 'source-over';
 
+  ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+
+  ctx.restore();
+
+  // -------------------------------
+  // FINISH
+  // -------------------------------
   completePhotoCapture();
 }
 
-
+// Main photo capture function
+function takePhoto() {
+  takePhotoBlend();
+}
   // Complete the photo capture process
   function completePhotoCapture() {
     const ctx = photoCanvas.getContext('2d');
