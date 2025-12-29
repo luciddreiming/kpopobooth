@@ -655,83 +655,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  // Main photo capture function
-  function takePhoto() {
-    state.isCapturing = true;
-    updateCameraStatus('Capturing...');
-    
-    // Set canvas dimensions to match video feed
-    const videoWidth = cameraFeed.videoWidth;
-    const videoHeight = cameraFeed.videoHeight;
-    photoCanvas.width = videoWidth;
-    photoCanvas.height = videoHeight;
-    
-    // Get canvas context
-    const ctx = photoCanvas.getContext('2d');
-    
-    // Clear the canvas first
-    ctx.clearRect(0, 0, videoWidth, videoHeight);
-    
-    // Draw the pose background image first - AT FULL OPACITY
-    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-    const poseImg = state.loadedPoseImages[currentPoseData.id];
-    
-    if (poseImg && poseImg.complete) {
-      // Draw the pose background to cover entire canvas
-      const poseAspect = poseImg.width / poseImg.height;
-      const canvasAspect = videoWidth / videoHeight;
-      
-      let sx, sy, sWidth, sHeight;
-      
-      if (poseAspect > canvasAspect) {
-        // Pose image is wider relative to its height than the canvas
-        sWidth = poseImg.height * canvasAspect;
-        sHeight = poseImg.height;
-        sx = (poseImg.width - sWidth) / 2;
-        sy = 0;
-      } else {
-        // Pose image is taller relative to its width than the canvas
-        sWidth = poseImg.width;
-        sHeight = sWidth / canvasAspect;
-        sx = 0;
-        sy = (poseImg.height - sHeight) / 2;
-      }
-      
-      // Draw the pose background at 100% opacity
-      ctx.globalAlpha = 1.0;
-      ctx.drawImage(
-        poseImg,
-        sx, sy, sWidth, sHeight,
-        0, 0, videoWidth, videoHeight
-      );
-    }
-    
-    // Save the current context state
-    ctx.save();
-    
-    if (state.isMirrored) {
-      // Flip the context horizontally for mirror effect
-      ctx.translate(videoWidth, 0);
-      ctx.scale(-1, 1);
-    }
-    
-    // Use 'destination-over' blend mode to keep background fully visible
-    // and overlay the camera feed on top
-    ctx.globalCompositeOperation = 'source-over';
-    
-    // Set appropriate opacity for the camera feed to blend with background
-    // Keep this at 1.0 to make the user fully visible on top of background
-    ctx.globalAlpha = 1.0;
-    
-    // Draw the camera feed
-    ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-    
-    // Restore the context state
-    ctx.restore();
-    
-    // Complete photo capture process
-    completePhotoCapture();
+function takePhoto() {
+  state.isCapturing = true;
+  updateCameraStatus('Capturing...');
+
+  const videoWidth = cameraFeed.videoWidth;
+  const videoHeight = cameraFeed.videoHeight;
+  photoCanvas.width = videoWidth;
+  photoCanvas.height = videoHeight;
+
+  const ctx = photoCanvas.getContext('2d');
+  ctx.clearRect(0, 0, videoWidth, videoHeight);
+
+  // ============================
+  // 1️⃣ DRAW CAMERA FIRST
+  // ============================
+  ctx.save();
+
+  if (state.isMirrored) {
+    ctx.translate(videoWidth, 0);
+    ctx.scale(-1, 1);
   }
+
+  ctx.globalAlpha = 1.0;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+  ctx.restore();
+
+  // ============================
+  // 2️⃣ DRAW BACKGROUND BEHIND
+  // ============================
+  const currentPose = state.selectedPoses[state.currentPhotoIndex];
+  const poseImg = state.loadedPoseImages[currentPose.id];
+
+  if (poseImg && poseImg.complete) {
+    ctx.globalCompositeOperation = 'destination-over';
+
+    const poseAspect = poseImg.width / poseImg.height;
+    const canvasAspect = videoWidth / videoHeight;
+
+    let sx, sy, sWidth, sHeight;
+
+    if (poseAspect > canvasAspect) {
+      sHeight = poseImg.height;
+      sWidth = sHeight * canvasAspect;
+      sx = (poseImg.width - sWidth) / 2;
+      sy = 0;
+    } else {
+      sWidth = poseImg.width;
+      sHeight = sWidth / canvasAspect;
+      sx = 0;
+      sy = (poseImg.height - sHeight) / 2;
+    }
+
+    ctx.drawImage(
+      poseImg,
+      sx, sy, sWidth, sHeight,
+      0, 0, videoWidth, videoHeight
+    );
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+
+  completePhotoCapture();
+}
+
 
   // Complete the photo capture process
   function completePhotoCapture() {
