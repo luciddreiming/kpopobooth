@@ -1,4 +1,4 @@
-/* RESET & BASE STYLES */
+/* RESET & BASE STYLESS */
 * {
   margin: 0;
   padding: 0;
@@ -392,7 +392,7 @@ button {
   transform: scaleX(-1); /* Mirror the camera feed */
 }
 
-/* Pose Overlay Container - FIXED FOR CONSISTENT POSITIONING */
+/* Permanent Pose Overlay - EXACT SIZE as selection page */
 .pose-overlay.permanent {
   position: absolute;
   top: 0;
@@ -408,17 +408,15 @@ button {
 }
 
 .pose-overlay-image {
-  max-width: 200px; /* MATCH POSE SELECTION PAGE SIZE */
-  max-height: 150px; /* MATCH POSE SELECTION PAGE SIZE */
-  width: auto;
-  height: auto;
+  /* EXACT same size as on selection page */
+  width: 180px;
+  height: 100px;
   object-fit: contain;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   opacity: 1;
   mix-blend-mode: normal;
   filter: drop-shadow(0 0 20px rgba(255, 204, 0, 0.7));
-  background: white;
-  padding: 5px;
-  border-radius: 8px;
 }
 
 .camera-permission,
@@ -677,8 +675,7 @@ button {
 .taken-photo-preview {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  background: white;
+  object-fit: cover;
 }
 
 .taken-photo-number {
@@ -789,9 +786,10 @@ button {
     text-align: center;
   }
   
+  /* Adjust pose overlay for smaller screens */
   .pose-overlay-image {
-    max-width: 160px;
-    max-height: 120px;
+    width: 150px;
+    height: 90px;
   }
 }
 
@@ -808,6 +806,14 @@ button {
     grid-template-columns: repeat(2, 1fr);
   }
   
+  .pose-box {
+    width: 100%;
+  }
+  
+  .pose-image {
+    height: 80px;
+  }
+  
   .bottom-slots {
     flex-direction: column;
     align-items: center;
@@ -815,7 +821,6 @@ button {
   
   .slot {
     width: 200px;
-    height: 150px;
   }
   
   .auto-capture-countdown {
@@ -829,8 +834,9 @@ button {
     font-size: 28px;
   }
   
+  /* Adjust pose overlay for mobile */
   .pose-overlay-image {
-    max-width: 160px;
-    max-height: 120px;
+    width: 130px;
+    height: 80px;
   }
 }
