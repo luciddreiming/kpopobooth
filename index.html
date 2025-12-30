@@ -58,74 +58,60 @@
         </div>
       </div>
       
+      <div class="settings-panel">
+        <h3>Capture Settings</h3>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label for="capture-timer"><i class="fas fa-clock"></i> Capture Timer</label>
+            <div class="timer-options">
+              <button class="timer-option active" data-seconds="3">3 seconds</button>
+              <button class="timer-option" data-seconds="5">5 seconds</button>
+              <button class="timer-option" data-seconds="10">10 seconds</button>
+            </div>
+          </div>
+          <div class="setting-group">
+            <label><i class="fas fa-camera"></i> Capture Mode</label>
+            <div class="capture-mode">
+              <div class="mode-option active">
+                <i class="fas fa-robot"></i>
+                <span>Automatic</span>
+                <small>Photos capture automatically</small>
+              </div>
+            </div>
+          </div>
+          <div class="setting-group">
+            <label><i class="fas fa-image"></i> Photo Blend</label>
+            <div class="blend-info">
+              <div class="blend-preview">
+                <div class="preview-layer bg-layer">Background</div>
+                <div class="preview-layer user-layer">+ Your Photo</div>
+                <div class="preview-result">= Final Result</div>
+              </div>
+              <p class="blend-description">Your selected pose will be permanently blended with your photo</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div class="controls">
         <button id="startSession" class="btn-primary" disabled>
-          Start Photo Session (0/4)
+          <i class="fas fa-play-circle"></i> Start Photo Session (0/4)
         </button>
         <button id="clearSelection" class="btn-secondary">
-          Clear All
+          <i class="fas fa-trash"></i> Clear All
         </button>
       </div>
     </section>
 
-    <!-- ===== PAGE 2 (TIMER SELECTION) ===== -->
-    <section id="page-timer" class="page page-timer">
-      <header>
-        <h1>Timer Settings</h1>
-        <p class="subtitle">Choose the countdown timer for your photos</p>
-      </header>
-      
-      <div class="timer-selection">
-        <div class="timer-options">
-          <div class="timer-option" data-timer="3">
-            <div class="timer-circle">3</div>
-            <h3>3 Seconds</h3>
-            <p>Quick countdown</p>
-          </div>
-          <div class="timer-option" data-timer="5">
-            <div class="timer-circle">5</div>
-            <h3>5 Seconds</h3>
-            <p>Standard timing</p>
-          </div>
-          <div class="timer-option" data-timer="10">
-            <div class="timer-circle">10</div>
-            <h3>10 Seconds</h3>
-            <p>Extra time to pose</p>
-          </div>
-        </div>
-        
-        <div class="selected-timer-info">
-          <div class="selected-timer-display">
-            <span>Selected Timer:</span>
-            <div class="timer-value" id="selectedTimer">5 seconds</div>
-          </div>
-          
-          <div class="timer-description">
-            <p><i class="fas fa-info-circle"></i> The camera will automatically capture photos for each pose after the countdown.</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="navigation-controls">
-        <button id="backToPosesFromTimer" class="btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back to Poses
-        </button>
-        <button id="proceedToCamera" class="btn-primary">
-          Proceed to Camera <i class="fas fa-camera"></i>
-        </button>
-      </div>
-    </section>
-
-    <!-- ===== PAGE 3 (CAMERA) ===== -->
+    <!-- ===== PAGE 2 (CAMERA) ===== -->
     <section id="page-camera" class="page page-camera">
       <header>
-        <h1>Photo Session</h1>
+        <h1>Take Your Photos</h1>
         <p class="subtitle" id="current-pose-text">
-          Camera will automatically capture photos
+          Photo will be captured automatically in <span id="timer-display">3</span> seconds
         </p>
         <div class="progress-indicator">
           <span id="photo-counter">1/4</span>
-          <span class="timer-indicator">Timer: <span id="current-timer">5</span>s</span>
         </div>
       </header>
       
@@ -135,9 +121,9 @@
           <div class="camera-viewfinder">
             <video id="cameraFeed" autoplay playsinline></video>
             
-            <!-- Pose Overlay (Permanent background) -->
-            <div id="poseOverlay" class="pose-overlay">
-              <img id="posePreview" class="pose-overlay-image" src="" alt="Pose Preview">
+            <!-- Permanent Background Overlay -->
+            <div id="backgroundOverlay" class="background-overlay">
+              <img id="backgroundImage" class="background-image" src="" alt="Background Pose">
             </div>
             
             <!-- Grid overlay for alignment -->
@@ -167,35 +153,37 @@
               </button>
             </div>
             
-            <!-- Auto-capture info -->
-            <div class="auto-capture-info" id="autoCaptureInfo">
-              <div class="info-content">
-                <i class="fas fa-robot"></i>
-                <h3>Auto-Capture Mode</h3>
-                <p>Photos will be taken automatically after countdown</p>
-                <p class="countdown-info">Next photo in: <span id="nextCaptureCountdown">5</span> seconds</p>
+            <!-- Auto-capture overlay -->
+            <div class="auto-capture-overlay" id="autoCaptureOverlay">
+              <div class="auto-capture-content">
+                <h3>Get Ready!</h3>
+                <div class="auto-timer">
+                  <div class="timer-circle">
+                    <svg class="timer-svg" width="120" height="120">
+                      <circle class="timer-circle-bg" cx="60" cy="60" r="54"></circle>
+                      <circle class="timer-circle-fill" cx="60" cy="60" r="54"></circle>
+                    </svg>
+                    <span class="timer-seconds" id="autoTimer">3</span>
+                  </div>
+                </div>
+                <p class="auto-instruction">Smile! Photo will be captured automatically</p>
               </div>
             </div>
-          </div>
-          
-          <!-- Countdown overlay -->
-          <div class="countdown-overlay" id="countdown">
-            <div class="countdown-number">3</div>
           </div>
           
           <!-- Flash effect -->
           <div class="flash-effect" id="flash"></div>
           
-          <!-- Session controls -->
-          <div class="session-controls">
-            <button id="startSessionBtn" class="btn-primary">
-              <i class="fas fa-play"></i> Start Session
+          <!-- Manual camera controls (hidden in auto mode) -->
+          <div class="camera-controls" id="manualControls" style="display: none;">
+            <button id="prevPhoto" class="btn-nav" title="Previous pose">
+              <i class="fas fa-chevron-left"></i>
             </button>
-            <button id="pauseSessionBtn" class="btn-secondary" style="display: none;">
-              <i class="fas fa-pause"></i> Pause
+            <button id="captureBtn" class="btn-capture">
+              <i class="fas fa-camera"></i>
             </button>
-            <button id="restartSessionBtn" class="btn-secondary">
-              <i class="fas fa-redo"></i> Restart
+            <button id="nextPhoto" class="btn-nav" title="Next pose">
+              <i class="fas fa-chevron-right"></i>
             </button>
           </div>
           
@@ -212,14 +200,17 @@
                 <div class="photo-success">
                   <i class="fas fa-check-circle"></i>
                   <h3>Photo Captured!</h3>
-                  <p>Previewing your photo...</p>
+                  <p>Previewing your blended photo...</p>
                 </div>
                 <div class="photo-actions">
+                  <button id="savePhoto" class="btn-secondary">
+                    <i class="fas fa-download"></i> Save
+                  </button>
+                  <button id="usePhoto" class="btn-primary">
+                    <i class="fas fa-check"></i> Continue
+                  </button>
                   <button id="retakePhoto" class="btn-secondary">
                     <i class="fas fa-redo"></i> Retake
-                  </button>
-                  <button id="continueSession" class="btn-primary">
-                    <i class="fas fa-play"></i> Continue
                   </button>
                 </div>
               </div>
@@ -231,11 +222,11 @@
         <div class="camera-status">
           <div class="status-indicator">
             <span class="status-dot" id="statusDot"></span>
-            <span id="camera-status-text">Camera permission required</span>
+            <span id="camera-status-text">Preparing camera...</span>
           </div>
           <div class="pose-info">
             <span id="current-pose-name">-</span>
-            <span id="pose-instruction">Get ready for auto-capture</span>
+            <span id="pose-instruction">Ready for automatic capture</span>
           </div>
         </div>
         
@@ -269,8 +260,11 @@
       </div>
       
       <div class="navigation-controls">
-        <button id="backToTimer" class="btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back to Timer
+        <button id="backToPoses" class="btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Poses
+        </button>
+        <button id="pauseSession" class="btn-secondary" style="display: none;">
+          <i class="fas fa-pause"></i> Pause Auto-Capture
         </button>
         <button id="finishSession" class="btn-primary" disabled>
           Finish Session <i class="fas fa-check"></i>
