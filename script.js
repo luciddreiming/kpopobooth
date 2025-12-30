@@ -694,9 +694,13 @@ function takePhotoBlend() {
       sy = (poseImg.height - sHeight) / 2;
     }
 
-    // 🔥 Draw background twice for clarity
+    // FORCE SOLID BACKGROUND
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#000'; // or '#fff'
+    ctx.fillRect(0, 0, videoWidth, videoHeight);
+
     ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
-    ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
+
   }
 
   // ===============================
