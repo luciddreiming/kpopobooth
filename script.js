@@ -13,7 +13,8 @@ document.addEventListener('DOMContentLoaded', function() {
     cameraInitialized: false,
     loadedPoseImages: {}, // Cache for loaded pose images
     isAutoCapturing: false,
-    captureInProgress: false
+    captureInProgress: false,
+    cameraFeedSize: { width: 0, height: 0 }
   };
 
   // Pose data - 20 poses with image references
@@ -69,6 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const poseOverlay = document.getElementById('poseOverlay');
   const posePreview = document.getElementById('posePreview');
   const timerOptions = document.querySelectorAll('.timer-option');
+  const cameraViewFinder = document.querySelector('.camera-viewfinder');
 
   // Preload pose images when poses are selected
   function preloadPoseImages() {
@@ -355,6 +357,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // Mark camera as initialized
       state.cameraInitialized = true;
       
+      // Update camera feed size
+      updateCameraFeedSize();
+      
       // Show pose overlay (permanent, 100% opacity)
       showPoseOverlay();
       
@@ -365,6 +370,22 @@ document.addEventListener('DOMContentLoaded', function() {
       console.error('Camera initialization error:', error);
       showCameraError('Failed to initialize camera. Please check permissions.');
     }
+  }
+
+  // Update camera feed dimensions
+  function updateCameraFeedSize() {
+    // Get the display size (what's shown on screen)
+    const displayRect = cameraViewFinder.getBoundingClientRect();
+    
+    // Store both the display size and actual video size
+    state.cameraFeedSize = {
+      displayWidth: displayRect.width,
+      displayHeight: displayRect.height,
+      videoWidth: cameraFeed.videoWidth || 640,
+      videoHeight: cameraFeed.videoHeight || 480
+    };
+    
+    console.log('Camera feed size updated:', state.cameraFeedSize);
   }
 
   // Start camera
@@ -400,6 +421,16 @@ document.addEventListener('DOMContentLoaded', function() {
       // Hide permission/error screens
       cameraPermission.style.display = 'none';
       cameraError.style.display = 'none';
+      
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        cameraFeed.onloadedmetadata = () => {
+          resolve();
+        };
+      });
+      
+      // Update camera feed size after video is loaded
+      updateCameraFeedSize();
       
       // Update status
       updateCameraStatus('Camera ready - Auto capture starting...');
@@ -500,6 +531,10 @@ document.addEventListener('DOMContentLoaded', function() {
         posePreview.src = currentPose.image;
         posePreview.alt = currentPose.label;
         poseOverlay.style.display = 'flex';
+        
+        // Set consistent size
+        updatePoseOverlaySize();
+        
         console.log(`Showing pose overlay: ${currentPose.label}`);
       } else {
         // If not loaded yet, wait for it to load
@@ -508,11 +543,39 @@ document.addEventListener('DOMContentLoaded', function() {
             posePreview.src = currentPose.image;
             posePreview.alt = currentPose.label;
             poseOverlay.style.display = 'flex';
+            
+            // Set consistent size
+            updatePoseOverlaySize();
+            
             console.log(`Showing pose overlay after load: ${currentPose.label}`);
           };
         }
       }
     }
+  }
+
+  // Update pose overlay size to match display
+  function updatePoseOverlaySize() {
+    if (!poseOverlay.style.display || poseOverlay.style.display === 'none') return;
+    
+    // Get the current display size
+    const displayRect = cameraViewFinder.getBoundingClientRect();
+    
+    // Calculate pose size as 80% of the smallest display dimension
+    const displaySize = Math.min(displayRect.width, displayRect.height);
+    const poseSize = displaySize * 0.8;
+    
+    // Center the pose
+    const poseX = (displayRect.width - poseSize) / 2;
+    const poseY = (displayRect.height - poseSize) / 2;
+    
+    // Apply to pose preview
+    posePreview.style.width = `${poseSize}px`;
+    posePreview.style.height = `${poseSize}px`;
+    posePreview.style.position = 'absolute';
+    posePreview.style.left = `${poseX}px`;
+    posePreview.style.top = `${poseY}px`;
+    posePreview.style.objectFit = 'contain';
   }
 
   // Hide pose overlay
@@ -526,12 +589,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     state.captureInProgress = true;
     
-    // Create canvas for capturing
+    // Get current display dimensions
+    const displayRect = cameraViewFinder.getBoundingClientRect();
+    const displayWidth = displayRect.width;
+    const displayHeight = displayRect.height;
+    
+    // Get video dimensions
+    const videoWidth = state.cameraFeedSize.videoWidth;
+    const videoHeight = state.cameraFeedSize.videoHeight;
+    
+    // Create canvas with display dimensions (what user sees on screen)
     const canvas = document.createElement('canvas');
-    const videoWidth = cameraFeed.videoWidth || 640;
-    const videoHeight = cameraFeed.videoHeight || 480;
-    canvas.width = videoWidth;
-    canvas.height = videoHeight;
+    canvas.width = displayWidth;
+    canvas.height = displayHeight;
     
     const ctx = canvas.getContext('2d');
     
@@ -554,32 +624,50 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Draw camera feed (user photo) as background
     ctx.save();
+    
+    // Calculate scale to fill the display area
+    const scaleX = displayWidth / videoWidth;
+    const scaleY = displayHeight / videoHeight;
+    const scale = Math.max(scaleX, scaleY); // Cover the area
+    
+    const scaledWidth = videoWidth * scale;
+    const scaledHeight = videoHeight * scale;
+    const offsetX = (displayWidth - scaledWidth) / 2;
+    const offsetY = (displayHeight - scaledHeight) / 2;
+    
+    // Apply mirror effect if needed
     if (state.isMirrored) {
-      ctx.translate(videoWidth, 0);
+      ctx.translate(displayWidth, 0);
       ctx.scale(-1, 1);
     }
     
     try {
-      ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+      // Draw video to fill the display area
+      ctx.drawImage(cameraFeed, 
+        state.isMirrored ? -offsetX : offsetX, 
+        offsetY, 
+        scaledWidth, 
+        scaledHeight);
     } catch (e) {
       console.error('Error drawing camera feed:', e);
     }
     
     ctx.restore();
     
-    // Draw pose overlay on top of user photo
+    // Draw pose overlay on top of user photo (same position as displayed)
     if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
       console.log(`Drawing pose overlay: ${currentPoseData.label}`);
       
       // Set global alpha for transparency (semi-transparent overlay)
       ctx.globalAlpha = 0.7; // 70% opacity
       
-      // Calculate dimensions for pose overlay
-      const poseSize = Math.min(videoWidth, videoHeight) * 0.8; // 80% of smallest dimension
-      const poseX = (videoWidth - poseSize) / 2;
-      const poseY = (videoHeight - poseSize) / 2;
+      // Calculate pose size exactly as displayed (80% of smallest display dimension)
+      const displaySize = Math.min(displayWidth, displayHeight);
+      const poseSize = displaySize * 0.8;
+      const poseX = (displayWidth - poseSize) / 2;
+      const poseY = (displayHeight - poseSize) / 2;
       
-      // Draw the pose image on top
+      // Draw the pose image on top (exactly as displayed)
       ctx.drawImage(poseImg, poseX, poseY, poseSize, poseSize);
       
       // Reset global alpha
@@ -590,16 +678,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add photo label at the bottom
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
+    ctx.fillRect(0, displayHeight - 60, displayWidth, 60);
     
     ctx.font = 'bold 24px Poppins, sans-serif';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
-    ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
+    ctx.fillText(currentPoseData.label, displayWidth / 2, displayHeight - 25);
     
     ctx.font = '16px Poppins, sans-serif';
     ctx.fillStyle = '#ffcc00';
-    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
+    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, displayWidth / 2, displayHeight - 5);
     
     // Store the captured photo
     const photoData = canvas.toDataURL('image/jpeg', 0.9);
@@ -887,6 +975,14 @@ document.addEventListener('DOMContentLoaded', function() {
       await requestCameraPermission();
     } catch (error) {
       console.error('Failed to request camera permission:', error);
+    }
+  });
+
+  // Handle window resize to update pose overlay size
+  window.addEventListener('resize', () => {
+    if (state.cameraInitialized) {
+      updateCameraFeedSize();
+      updatePoseOverlaySize();
     }
   });
 
