@@ -694,13 +694,9 @@ function takePhotoBlend() {
       sy = (poseImg.height - sHeight) / 2;
     }
 
-    // FORCE SOLID BACKGROUND
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = '#000'; // or '#fff'
-    ctx.fillRect(0, 0, videoWidth, videoHeight);
-
+    // 🔥 Draw background twice for clarity
     ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
-
+    ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
   }
 
   // ===============================
@@ -713,8 +709,11 @@ function takePhotoBlend() {
     ctx.scale(-1, 1);
   }
 
-  ctx.globalAlpha = 1; // ✅ user image NOT affected
-  ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+ctx.globalAlpha = 1;
+ctx.fillStyle = '#000'; // or white '#fff'
+ctx.fillRect(0, 0, videoWidth, videoHeight);
+ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
+
 
   ctx.restore();
 
