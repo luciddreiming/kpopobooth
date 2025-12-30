@@ -74,36 +74,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const timerOptions = document.querySelectorAll('.timer-option');
   const cameraViewfinder = document.querySelector('.camera-viewfinder');
 
-  // Get pose overlay display size - EXACT same as on selection page
-  function getPoseOverlayDisplaySize() {
-    // Get the actual display size from CSS or calculated based on viewport
-    const poseBox = document.querySelector('.pose-box');
-    const slotImage = document.querySelector('.slot.filled .slot-image');
-    
-    // Use fixed sizes that match the CSS for pose boxes
-    if (window.innerWidth <= 480) {
-      // Mobile sizes
-      return { width: 130, height: 80 };
-    } else if (window.innerWidth <= 768) {
-      // Tablet sizes
-      return { width: 150, height: 90 };
-    } else {
-      // Desktop sizes - EXACT same as pose selection page
-      return { width: 180, height: 100 };
-    }
-  }
-
-  // Get pose overlay position - center it
-  function getPoseOverlayPosition() {
-    const displaySize = getCameraDisplaySize();
-    const poseSize = getPoseOverlayDisplaySize();
-    
-    return {
-      x: (displaySize.width - poseSize.width) / 2,
-      y: (displaySize.height - poseSize.height) / 2
-    };
-  }
-
   // Get the actual displayed size of the camera feed
   function getCameraDisplaySize() {
     const cameraRect = cameraFeed.getBoundingClientRect();
@@ -112,6 +82,45 @@ document.addEventListener('DOMContentLoaded', function() {
       height: cameraRect.height
     };
   }
+
+function getPoseOverlayDisplaySize() {
+  // Use actual camera video resolution (NOT display size)
+  const videoWidth = cameraFeed.videoWidth || 1280;
+  const videoHeight = cameraFeed.videoHeight || 720;
+
+  const maxWidth = videoWidth * 0.8;
+  const maxHeight = videoHeight * 0.8;
+
+  const poseImg =
+    state.loadedPoseImages[state.selectedPoses[state.currentPhotoIndex]?.id];
+
+  if (!poseImg || !poseImg.complete) {
+    return { width: maxWidth, height: maxHeight };
+  }
+
+  const aspectRatio = poseImg.naturalWidth / poseImg.naturalHeight;
+
+  let width = maxWidth;
+  let height = width / aspectRatio;
+
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspectRatio;
+  }
+
+  return { width, height };
+}
+
+function getPoseOverlayPosition() {
+  const videoWidth = cameraFeed.videoWidth || 1280;
+  const videoHeight = cameraFeed.videoHeight || 720;
+  const poseSize = getPoseOverlayDisplaySize();
+
+  return {
+    x: (videoWidth - poseSize.width) / 2,
+    y: (videoHeight - poseSize.height) / 2
+  };
+}
 
   // Preload pose images when poses are selected
   function preloadPoseImages() {
@@ -625,15 +634,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoHeight = cameraFeed.videoHeight || 480;
     
     // Get display dimensions
-    const displayWidth = state.cameraDisplayWidth;
-    const displayHeight = state.cameraDisplayHeight;
-    
-    console.log(`Video dimensions: ${videoWidth}x${videoHeight}`);
-    console.log(`Display dimensions: ${displayWidth}x${displayHeight}`);
-    
-    // Calculate scaling factors
-    const scaleX = videoWidth / displayWidth;
-    const scaleY = videoHeight / displayHeight;
+console.log(`Camera video resolution: ${videoWidth}x${videoHeight}`);
+
+// No scaling needed — drawing is already in video space
+const scaleX = 1;
+const scaleY = 1;
+
     
     // Create canvas with video dimensions (not display dimensions)
     const canvas = document.createElement('canvas');
@@ -664,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
       console.log(`Drawing pose overlay: ${currentPoseData.label}`);
       
-      // Get the EXACT display size and position of the pose overlay
+      // Get the displayed size and position of the pose overlay
       const poseDisplaySize = getPoseOverlayDisplaySize();
       const poseDisplayPos = getPoseOverlayPosition();
       
@@ -681,40 +687,13 @@ document.addEventListener('DOMContentLoaded', function() {
       // Use 100% opacity (no transparency)
       ctx.globalAlpha = 1.0;
       
-      // Draw the pose image on top at EXACT same size as on selection page
+      // Draw the pose image on top at exact same size and position
       try {
-        // Center the image within the pose overlay area
-        const imgAspectRatio = poseImg.naturalWidth / poseImg.naturalHeight;
-        const poseAspectRatio = poseDisplaySize.width / poseDisplaySize.height;
-        
-        let drawWidth = canvasWidth;
-        let drawHeight = canvasHeight;
-        let drawX = canvasX;
-        let drawY = canvasY;
-        
-        // Maintain aspect ratio while fitting in the pose box
-        if (imgAspectRatio > poseAspectRatio) {
-          // Image is wider than pose box
-          drawHeight = canvasWidth / imgAspectRatio;
-          drawY = canvasY + (canvasHeight - drawHeight) / 2;
-        } else {
-          // Image is taller than pose box
-          drawWidth = canvasHeight * imgAspectRatio;
-          drawX = canvasX + (canvasWidth - drawWidth) / 2;
-        }
-        
-        // Draw the image with object-fit: contain behavior
-        ctx.drawImage(poseImg, drawX, drawY, drawWidth, drawHeight);
-        
-        // Draw a subtle border to match the selection page style
-        ctx.strokeStyle = '#ffcc00';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
-        
+        ctx.drawImage(poseImg, canvasX, canvasY, canvasWidth, canvasHeight);
       } catch (e) {
         console.error('Error drawing pose image:', e);
         // Fallback to center if there's an error
-        const fallbackSize = Math.min(videoWidth, videoHeight) * 0.4;
+        const fallbackSize = Math.min(videoWidth, videoHeight) * 0.8;
         const fallbackX = (videoWidth - fallbackSize) / 2;
         const fallbackY = (videoHeight - fallbackSize) / 2;
         ctx.drawImage(poseImg, fallbackX, fallbackY, fallbackSize, fallbackSize);
