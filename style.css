@@ -391,7 +391,7 @@ button {
   transform: scaleX(-1); /* Mirror the camera feed */
 }
 
-/* BIG Pose Overlay (100% opacity, COVERING) */
+/* Permanent Pose Overlay (100% opacity, fixed size) */
 .pose-overlay.permanent {
   position: absolute;
   top: 0;
@@ -407,11 +407,12 @@ button {
 }
 
 .pose-overlay-image {
-  width: 90% !important;
-  height: 90% !important;
+  max-width: 80%;
+  max-height: 80%;
   object-fit: contain;
   opacity: 1;
   mix-blend-mode: normal;
+  filter: drop-shadow(0 0 20px rgba(255, 204, 0, 0.7));
 }
 
 .camera-permission,
@@ -780,6 +781,11 @@ button {
   .pose-info {
     text-align: center;
   }
+  
+  .pose-overlay-image {
+    max-width: 90%;
+    max-height: 90%;
+  }
 }
 
 @media (max-width: 480px) {
@@ -813,5 +819,10 @@ button {
   
   .auto-countdown-number {
     font-size: 28px;
+  }
+  
+  .pose-overlay-image {
+    max-width: 95%;
+    max-height: 95%;
   }
 }
