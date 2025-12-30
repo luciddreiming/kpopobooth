@@ -552,61 +552,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw pose image as background (if loaded)
-    if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
-      console.log(`Drawing pose image: ${currentPoseData.label}`);
-      
-      // Calculate aspect ratios for proper scaling
-      const poseAspect = poseImg.width / poseImg.height;
-      const canvasAspect = videoWidth / videoHeight;
-      
-      let sx, sy, sWidth, sHeight;
-      let dx, dy, dWidth, dHeight;
-      
-      if (poseAspect > canvasAspect) {
-        // Pose image is wider than canvas
-        sWidth = poseImg.height * canvasAspect;
-        sHeight = poseImg.height;
-        sx = (poseImg.width - sWidth) / 2;
-        sy = 0;
-        
-        // Draw to fill entire canvas
-        dx = 0;
-        dy = 0;
-        dWidth = videoWidth;
-        dHeight = videoHeight;
-      } else {
-        // Pose image is taller than canvas
-        sWidth = poseImg.width;
-        sHeight = poseImg.width / canvasAspect;
-        sx = 0;
-        sy = (poseImg.height - sHeight) / 2;
-        
-        // Draw to fill entire canvas
-        dx = 0;
-        dy = 0;
-        dWidth = videoWidth;
-        dHeight = videoHeight;
-      }
-      
-      // Draw pose as background
-      ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-    } else {
-      console.warn(`Pose image not loaded for: ${currentPoseData.label}`);
-      // Fill with a solid color as fallback
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    
-    // Draw camera feed on top (user)
+    // Draw camera feed (user photo) as background
     ctx.save();
-    
     if (state.isMirrored) {
       ctx.translate(videoWidth, 0);
       ctx.scale(-1, 1);
     }
     
-    // Draw the camera feed
     try {
       ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
     } catch (e) {
@@ -614,6 +566,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     ctx.restore();
+    
+    // Draw pose overlay on top of user photo
+    if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
+      console.log(`Drawing pose overlay: ${currentPoseData.label}`);
+      
+      // Set global alpha for transparency (semi-transparent overlay)
+      ctx.globalAlpha = 0.7; // 70% opacity
+      
+      // Calculate dimensions for pose overlay
+      const poseSize = Math.min(videoWidth, videoHeight) * 0.8; // 80% of smallest dimension
+      const poseX = (videoWidth - poseSize) / 2;
+      const poseY = (videoHeight - poseSize) / 2;
+      
+      // Draw the pose image on top
+      ctx.drawImage(poseImg, poseX, poseY, poseSize, poseSize);
+      
+      // Reset global alpha
+      ctx.globalAlpha = 1.0;
+    } else {
+      console.warn(`Pose image not loaded for: ${currentPoseData.label}`);
+    }
     
     // Add photo label at the bottom
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
