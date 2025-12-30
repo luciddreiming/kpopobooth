@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     isMirrored: true,
     cameraInitialized: false,
     loadedPoseImages: {}, // Cache for loaded pose images
-    isAutoCapturing: false
+    isAutoCapturing: false,
+    captureInProgress: false
   };
 
   // Pose data - 20 poses with image references
@@ -76,6 +77,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const img = new Image();
         img.src = pose.image;
         img.crossOrigin = "anonymous";
+        img.onload = () => {
+          console.log(`Loaded pose image: ${pose.label}`);
+        };
+        img.onerror = (e) => {
+          console.error(`Failed to load pose image: ${pose.image}`, e);
+        };
         state.loadedPoseImages[pose.id] = img;
       }
     });
@@ -191,6 +198,9 @@ document.addEventListener('DOMContentLoaded', function() {
       const img = new Image();
       img.src = pose.image;
       img.crossOrigin = "anonymous";
+      img.onload = () => {
+        console.log(`Preloaded pose image: ${pose.label}`);
+      };
       state.loadedPoseImages[pose.id] = img;
       
       // Add pose number indicator
@@ -278,6 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
     state.currentPhotoIndex = 0;
     state.takenPhotos = [];
     state.isAutoCapturing = false;
+    state.captureInProgress = false;
     
     // Update camera page
     updateCameraPage();
@@ -296,6 +307,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Hide auto-capture elements initially
     autoCaptureCountdown.style.display = 'none';
     autoCaptureStatus.style.display = 'none';
+    
+    // Hide pose overlay initially
+    hidePoseOverlay();
   }
 
   // Request camera permission
@@ -444,10 +458,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Start auto-capture for current pose
   function startAutoCaptureForCurrentPose() {
-    if (!state.isAutoCapturing) return;
+    if (!state.isAutoCapturing || state.captureInProgress) return;
     
     // Update current pose info
     updateCameraPage();
+    
+    // Show pose overlay for current pose
+    showPoseOverlay();
     
     // Show countdown
     autoCaptureCountdown.style.display = 'flex';
@@ -472,13 +489,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  // Show pose overlay (permanent, 100% opacity)
+  // Show pose overlay (permanent, 100% opacity) for current pose
   function showPoseOverlay() {
     if (state.cameraInitialized && state.selectedPoses[state.currentPhotoIndex]) {
       const currentPose = state.selectedPoses[state.currentPhotoIndex];
-      posePreview.src = currentPose.image;
-      posePreview.alt = currentPose.label;
-      poseOverlay.style.display = 'flex';
+      
+      // Check if image is loaded
+      const poseImg = state.loadedPoseImages[currentPose.id];
+      if (poseImg && poseImg.complete) {
+        posePreview.src = currentPose.image;
+        posePreview.alt = currentPose.label;
+        poseOverlay.style.display = 'flex';
+        console.log(`Showing pose overlay: ${currentPose.label}`);
+      } else {
+        // If not loaded yet, wait for it to load
+        if (poseImg) {
+          poseImg.onload = () => {
+            posePreview.src = currentPose.image;
+            posePreview.alt = currentPose.label;
+            poseOverlay.style.display = 'flex';
+            console.log(`Showing pose overlay after load: ${currentPose.label}`);
+          };
+        }
+      }
     }
   }
 
@@ -489,42 +522,80 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Capture photo automatically
   function capturePhoto() {
-    if (!state.cameraInitialized || !state.cameraStream) return;
+    if (!state.cameraInitialized || !state.cameraStream || state.captureInProgress) return;
+    
+    state.captureInProgress = true;
     
     // Create canvas for capturing
     const canvas = document.createElement('canvas');
-    const videoWidth = cameraFeed.videoWidth;
-    const videoHeight = cameraFeed.videoHeight;
+    const videoWidth = cameraFeed.videoWidth || 640;
+    const videoHeight = cameraFeed.videoHeight || 480;
     canvas.width = videoWidth;
     canvas.height = videoHeight;
     
     const ctx = canvas.getContext('2d');
     
-    // Draw pose image as background (100% opacity)
+    // Get current pose data
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
-    if (poseImg && poseImg.complete) {
+    // Ensure camera feed is ready
+    if (cameraFeed.readyState < 2) {
+      console.warn('Camera feed not ready, delaying capture...');
+      setTimeout(() => {
+        capturePhoto();
+      }, 100);
+      state.captureInProgress = false;
+      return;
+    }
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw pose image as background (if loaded)
+    if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
+      console.log(`Drawing pose image: ${currentPoseData.label}`);
+      
       // Calculate aspect ratios for proper scaling
       const poseAspect = poseImg.width / poseImg.height;
       const canvasAspect = videoWidth / videoHeight;
       
       let sx, sy, sWidth, sHeight;
+      let dx, dy, dWidth, dHeight;
       
       if (poseAspect > canvasAspect) {
+        // Pose image is wider than canvas
         sWidth = poseImg.height * canvasAspect;
         sHeight = poseImg.height;
         sx = (poseImg.width - sWidth) / 2;
         sy = 0;
+        
+        // Draw to fill entire canvas
+        dx = 0;
+        dy = 0;
+        dWidth = videoWidth;
+        dHeight = videoHeight;
       } else {
+        // Pose image is taller than canvas
         sWidth = poseImg.width;
         sHeight = poseImg.width / canvasAspect;
         sx = 0;
         sy = (poseImg.height - sHeight) / 2;
+        
+        // Draw to fill entire canvas
+        dx = 0;
+        dy = 0;
+        dWidth = videoWidth;
+        dHeight = videoHeight;
       }
       
       // Draw pose as background
-      ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
+      ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+    } else {
+      console.warn(`Pose image not loaded for: ${currentPoseData.label}`);
+      // Fill with a solid color as fallback
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     
     // Draw camera feed on top (user)
@@ -535,19 +606,25 @@ document.addEventListener('DOMContentLoaded', function() {
       ctx.scale(-1, 1);
     }
     
-    ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+    // Draw the camera feed
+    try {
+      ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+    } catch (e) {
+      console.error('Error drawing camera feed:', e);
+    }
+    
     ctx.restore();
     
-    // Add photo label
+    // Add photo label at the bottom
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
     
-    ctx.font = 'bold 24px Poppins';
+    ctx.font = 'bold 24px Poppins, sans-serif';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
     ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
     
-    ctx.font = '16px Poppins';
+    ctx.font = '16px Poppins, sans-serif';
     ctx.fillStyle = '#ffcc00';
     ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
     
@@ -556,8 +633,11 @@ document.addEventListener('DOMContentLoaded', function() {
     state.takenPhotos[state.currentPhotoIndex] = {
       data: photoData,
       label: currentPoseData.label,
-      poseId: currentPoseData.id
+      poseId: currentPoseData.id,
+      index: state.currentPhotoIndex
     };
+    
+    console.log(`Captured photo ${state.currentPhotoIndex + 1}: ${currentPoseData.label}`);
     
     // Show flash effect
     showFlash();
@@ -571,25 +651,38 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update finish button
     updateFinishButton();
     
-    // Move to next pose or finish
-    if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
-      // Move to next pose after a brief delay
-      setTimeout(() => {
+    // Move to next pose or finish after a brief delay
+    setTimeout(() => {
+      if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
+        // Move to next pose
         state.currentPhotoIndex++;
-        startAutoCaptureForCurrentPose();
-      }, 1000);
-    } else {
-      // All photos captured
-      finishAutoCapture();
-    }
+        state.captureInProgress = false;
+        
+        // Hide pose overlay briefly before showing next one
+        hidePoseOverlay();
+        
+        // Start auto-capture for next pose after short delay
+        setTimeout(() => {
+          startAutoCaptureForCurrentPose();
+        }, 500);
+      } else {
+        // All photos captured
+        state.captureInProgress = false;
+        finishAutoCapture();
+      }
+    }, 1000);
   }
 
   // Show flash effect
   function showFlash() {
     flash.style.opacity = '1';
+    flash.style.display = 'block';
     setTimeout(() => {
       flash.style.opacity = '0';
-    }, 500);
+      setTimeout(() => {
+        flash.style.display = 'none';
+      }, 500);
+    }, 100);
   }
 
   // Play capture sound
@@ -662,8 +755,13 @@ document.addEventListener('DOMContentLoaded', function() {
     autoCaptureStatus.style.display = 'none';
     updateCameraStatus('Session completed! All photos captured.');
     
+    // Hide pose overlay
+    hidePoseOverlay();
+    
     // Show success animation
     document.querySelector('.camera-viewfinder').style.animation = 'flashSuccess 1s 3';
+    
+    console.log('Photo session completed!');
   }
 
   // Navigate to a specific photo
@@ -744,11 +842,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reset camera state
     state.cameraInitialized = false;
     state.isAutoCapturing = false;
+    state.captureInProgress = false;
     
     // Clear any active timers
     if (state.autoCaptureTimer) {
       clearTimeout(state.autoCaptureTimer);
     }
+    
+    // Hide pose overlay
+    hidePoseOverlay();
     
     pageCamera.classList.remove('active');
     pagePoses.classList.add('active');
@@ -772,7 +874,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const link = document.createElement('a');
             link.href = photo.data;
             link.download = `photo-booth-${index + 1}-${photo.label.toLowerCase().replace(/\s+/g, '-')}.jpg`;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
           }
         });
       }
