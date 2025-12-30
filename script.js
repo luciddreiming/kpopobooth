@@ -14,7 +14,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadedPoseImages: {}, // Cache for loaded pose images
     isAutoCapturing: false,
     captureInProgress: false,
-    currentPoseElement: null // Track current pose overlay element
+    currentPoseElement: null, // Track current pose overlay element
+    cameraDisplayWidth: 0, // Store actual display width of camera
+    cameraDisplayHeight: 0 // Store actual display height of camera
   };
 
   // Pose data - 20 poses with image references
@@ -72,40 +74,40 @@ document.addEventListener('DOMContentLoaded', function() {
   const timerOptions = document.querySelectorAll('.timer-option');
   const cameraViewfinder = document.querySelector('.camera-viewfinder');
 
-  // Get actual displayed size of pose overlay
+  // Get the actual displayed size of the camera feed
+  function getCameraDisplaySize() {
+    const cameraRect = cameraFeed.getBoundingClientRect();
+    return {
+      width: cameraRect.width,
+      height: cameraRect.height
+    };
+  }
+
+  // Get pose overlay display size
   function getPoseOverlayDisplaySize() {
-    if (!posePreview || !posePreview.complete) {
-      return {
-        width: Math.min(cameraFeed.videoWidth || 640, cameraFeed.videoHeight || 480) * 0.8,
-        height: Math.min(cameraFeed.videoWidth || 640, cameraFeed.videoHeight || 480) * 0.8
-      };
+    const displaySize = getCameraDisplaySize();
+    
+    // Calculate size based on 80% of camera display (matching CSS max-width/max-height)
+    const maxWidth = displaySize.width * 0.8;
+    const maxHeight = displaySize.height * 0.8;
+    
+    // Get natural aspect ratio of pose image
+    const poseImg = state.loadedPoseImages[state.selectedPoses[state.currentPhotoIndex]?.id];
+    if (!poseImg || !poseImg.complete) {
+      return { width: maxWidth, height: maxHeight };
     }
     
-    // Get computed style to know actual displayed size
-    const style = window.getComputedStyle(posePreview);
-    const maxWidth = style.maxWidth;
-    const maxHeight = style.maxHeight;
-    
-    // Parse the percentage values
-    const maxWidthPercent = parseFloat(maxWidth) / 100;
-    const maxHeightPercent = parseFloat(maxHeight) / 100;
-    
-    // Calculate based on parent container
-    const parentWidth = poseOverlay.clientWidth;
-    const parentHeight = poseOverlay.clientHeight;
-    
-    // Get natural aspect ratio of image
-    const naturalWidth = posePreview.naturalWidth;
-    const naturalHeight = posePreview.naturalHeight;
+    const naturalWidth = poseImg.naturalWidth;
+    const naturalHeight = poseImg.naturalHeight;
     const aspectRatio = naturalWidth / naturalHeight;
     
-    // Calculate size based on max-width/max-height constraints
-    let displayWidth = parentWidth * maxWidthPercent;
+    // Calculate size maintaining aspect ratio
+    let displayWidth = maxWidth;
     let displayHeight = displayWidth / aspectRatio;
     
     // Check if height exceeds max height
-    if (displayHeight > parentHeight * maxHeightPercent) {
-      displayHeight = parentHeight * maxHeightPercent;
+    if (displayHeight > maxHeight) {
+      displayHeight = maxHeight;
       displayWidth = displayHeight * aspectRatio;
     }
     
@@ -117,23 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Get pose overlay position
   function getPoseOverlayPosition() {
-    if (!posePreview || !posePreview.complete) {
-      const videoWidth = cameraFeed.videoWidth || 640;
-      const videoHeight = cameraFeed.videoHeight || 480;
-      const poseSize = Math.min(videoWidth, videoHeight) * 0.8;
-      return {
-        x: (videoWidth - poseSize) / 2,
-        y: (videoHeight - poseSize) / 2
-      };
-    }
-    
-    // Get actual position from computed style
-    const rect = posePreview.getBoundingClientRect();
-    const parentRect = poseOverlay.getBoundingClientRect();
+    const displaySize = getCameraDisplaySize();
+    const poseSize = getPoseOverlayDisplaySize();
     
     return {
-      x: rect.left - parentRect.left,
-      y: rect.top - parentRect.top
+      x: (displaySize.width - poseSize.width) / 2,
+      y: (displaySize.height - poseSize.height) / 2
     };
   }
 
@@ -425,6 +416,13 @@ document.addEventListener('DOMContentLoaded', function() {
       // Wait for camera feed to be ready
       await waitForCameraReady();
       
+      // Store actual display dimensions
+      const displaySize = getCameraDisplaySize();
+      state.cameraDisplayWidth = displaySize.width;
+      state.cameraDisplayHeight = displaySize.height;
+      
+      console.log(`Camera display size: ${state.cameraDisplayWidth}x${state.cameraDisplayHeight}`);
+      
       // Show pose overlay (permanent, 100% opacity)
       showPoseOverlay();
       
@@ -623,15 +621,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     state.captureInProgress = true;
     
-    // Create canvas for capturing
-    const canvas = document.createElement('canvas');
-    const videoWidth = cameraFeed.videoWidth || 640;
-    const videoHeight = cameraFeed.videoHeight || 480;
-    canvas.width = videoWidth;
-    canvas.height = videoHeight;
-    
-    const ctx = canvas.getContext('2d');
-    
     // Get current pose data
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
@@ -645,6 +634,28 @@ document.addEventListener('DOMContentLoaded', function() {
       state.captureInProgress = false;
       return;
     }
+    
+    // Get camera feed dimensions
+    const videoWidth = cameraFeed.videoWidth || 640;
+    const videoHeight = cameraFeed.videoHeight || 480;
+    
+    // Get display dimensions
+    const displayWidth = state.cameraDisplayWidth;
+    const displayHeight = state.cameraDisplayHeight;
+    
+    console.log(`Video dimensions: ${videoWidth}x${videoHeight}`);
+    console.log(`Display dimensions: ${displayWidth}x${displayHeight}`);
+    
+    // Calculate scaling factors
+    const scaleX = videoWidth / displayWidth;
+    const scaleY = videoHeight / displayHeight;
+    
+    // Create canvas with video dimensions (not display dimensions)
+    const canvas = document.createElement('canvas');
+    canvas.width = videoWidth;
+    canvas.height = videoHeight;
+    
+    const ctx = canvas.getContext('2d');
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -668,24 +679,22 @@ document.addEventListener('DOMContentLoaded', function() {
     if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
       console.log(`Drawing pose overlay: ${currentPoseData.label}`);
       
-      // Get the actual displayed size and position of the pose overlay
-      const displaySize = getPoseOverlayDisplaySize();
-      const displayPos = getPoseOverlayPosition();
+      // Get the displayed size and position of the pose overlay
+      const poseDisplaySize = getPoseOverlayDisplaySize();
+      const poseDisplayPos = getPoseOverlayPosition();
+      
+      // Calculate pose overlay position and size in canvas coordinates
+      // Scale from display coordinates to video coordinates
+      const canvasX = poseDisplayPos.x * scaleX;
+      const canvasY = poseDisplayPos.y * scaleY;
+      const canvasWidth = poseDisplaySize.width * scaleX;
+      const canvasHeight = poseDisplaySize.height * scaleY;
+      
+      console.log(`Pose display: pos(${poseDisplayPos.x}, ${poseDisplayPos.y}), size(${poseDisplaySize.width}x${poseDisplaySize.height})`);
+      console.log(`Pose canvas: pos(${canvasX}, ${canvasY}), size(${canvasWidth}x${canvasHeight})`);
       
       // Use 100% opacity (no transparency)
       ctx.globalAlpha = 1.0;
-      
-      // Calculate scaling factor from display size to canvas size
-      const scaleX = videoWidth / cameraViewfinder.clientWidth;
-      const scaleY = videoHeight / cameraViewfinder.clientHeight;
-      
-      // Calculate position and size in canvas coordinates
-      const canvasX = displayPos.x * scaleX;
-      const canvasY = displayPos.y * scaleY;
-      const canvasWidth = displaySize.width * scaleX;
-      const canvasHeight = displaySize.height * scaleY;
-      
-      console.log(`Pose overlay canvas position: x=${canvasX}, y=${canvasY}, w=${canvasWidth}, h=${canvasHeight}`);
       
       // Draw the pose image on top at exact same size and position
       try {
@@ -934,6 +943,8 @@ document.addEventListener('DOMContentLoaded', function() {
     state.isAutoCapturing = false;
     state.captureInProgress = false;
     state.currentPoseElement = null;
+    state.cameraDisplayWidth = 0;
+    state.cameraDisplayHeight = 0;
     
     // Clear any active timers
     if (state.autoCaptureTimer) {
@@ -1005,6 +1016,16 @@ document.addEventListener('DOMContentLoaded', function() {
       await requestCameraPermission();
     } catch (error) {
       console.error('Failed to request camera permission:', error);
+    }
+  });
+
+  // Recalculate display dimensions on window resize
+  window.addEventListener('resize', () => {
+    if (state.cameraInitialized) {
+      const displaySize = getCameraDisplaySize();
+      state.cameraDisplayWidth = displaySize.width;
+      state.cameraDisplayHeight = displaySize.height;
+      console.log(`Camera display size updated: ${state.cameraDisplayWidth}x${state.cameraDisplayHeight}`);
     }
   });
 
