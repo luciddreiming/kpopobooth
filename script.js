@@ -83,44 +83,44 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   }
 
-function getPoseOverlayDisplaySize() {
-  // Use actual camera video resolution (NOT display size)
-  const videoWidth = cameraFeed.videoWidth || 1280;
-  const videoHeight = cameraFeed.videoHeight || 720;
+  function getPoseOverlayDisplaySize() {
+    // Use actual camera video resolution (NOT display size)
+    const videoWidth = cameraFeed.videoWidth || 1280;
+    const videoHeight = cameraFeed.videoHeight || 720;
 
-  const maxWidth = videoWidth * 0.8;
-  const maxHeight = videoHeight * 0.8;
+    const maxWidth = videoWidth * 0.8;
+    const maxHeight = videoHeight * 0.8;
 
-  const poseImg =
-    state.loadedPoseImages[state.selectedPoses[state.currentPhotoIndex]?.id];
+    const poseImg =
+      state.loadedPoseImages[state.selectedPoses[state.currentPhotoIndex]?.id];
 
-  if (!poseImg || !poseImg.complete) {
-    return { width: maxWidth, height: maxHeight };
+    if (!poseImg || !poseImg.complete) {
+      return { width: maxWidth, height: maxHeight };
+    }
+
+    const aspectRatio = poseImg.naturalWidth / poseImg.naturalHeight;
+
+    let width = maxWidth;
+    let height = width / aspectRatio;
+
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+
+    return { width, height };
   }
 
-  const aspectRatio = poseImg.naturalWidth / poseImg.naturalHeight;
+  function getPoseOverlayPosition() {
+    const videoWidth = cameraFeed.videoWidth || 1280;
+    const videoHeight = cameraFeed.videoHeight || 720;
+    const poseSize = getPoseOverlayDisplaySize();
 
-  let width = maxWidth;
-  let height = width / aspectRatio;
-
-  if (height > maxHeight) {
-    height = maxHeight;
-    width = height * aspectRatio;
+    return {
+      x: (videoWidth - poseSize.width) / 2,
+      y: (videoHeight - poseSize.height) / 2
+    };
   }
-
-  return { width, height };
-}
-
-function getPoseOverlayPosition() {
-  const videoWidth = cameraFeed.videoWidth || 1280;
-  const videoHeight = cameraFeed.videoHeight || 720;
-  const poseSize = getPoseOverlayDisplaySize();
-
-  return {
-    x: (videoWidth - poseSize.width) / 2,
-    y: (videoHeight - poseSize.height) / 2
-  };
-}
 
   // Preload pose images when poses are selected
   function preloadPoseImages() {
@@ -633,38 +633,31 @@ function getPoseOverlayPosition() {
     const videoWidth = cameraFeed.videoWidth || 640;
     const videoHeight = cameraFeed.videoHeight || 480;
     
-    // Get display dimensions
-console.log(`Camera video resolution: ${videoWidth}x${videoHeight}`);
-
-// No scaling needed — drawing is already in video space
-const scaleX = 1;
-const scaleY = 1;
-
+    console.log(`Camera video resolution: ${videoWidth}x${videoHeight}`);
     
-    // Create canvas with video dimensions (not display dimensions)
+    // Create canvas with EXACT video dimensions - no extra padding
     const canvas = document.createElement('canvas');
     canvas.width = videoWidth;
     canvas.height = videoHeight;
     
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear entire canvas with solid color (no transparent edges)
+    ctx.fillStyle = '#000000'; // Black background to fill any edges
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw camera feed (user photo) as background
-    ctx.save();
+    // Draw camera feed (user photo) to fill entire canvas
     if (state.isMirrored) {
-      ctx.translate(videoWidth, 0);
+      // For mirrored view, we need to flip the image
+      ctx.save();
+      ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
+      ctx.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    } else {
+      // For non-mirrored view
+      ctx.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
     }
-    
-    try {
-      ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
-    } catch (e) {
-      console.error('Error drawing camera feed:', e);
-    }
-    
-    ctx.restore();
     
     // Draw pose overlay on top of user photo at 100% opacity
     if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
@@ -674,15 +667,14 @@ const scaleY = 1;
       const poseDisplaySize = getPoseOverlayDisplaySize();
       const poseDisplayPos = getPoseOverlayPosition();
       
-      // Calculate pose overlay position and size in canvas coordinates
-      // Scale from display coordinates to video coordinates
-      const canvasX = poseDisplayPos.x * scaleX;
-      const canvasY = poseDisplayPos.y * scaleY;
-      const canvasWidth = poseDisplaySize.width * scaleX;
-      const canvasHeight = poseDisplaySize.height * scaleY;
+      // Since canvas is already at video dimensions, no scaling needed
+      const canvasX = poseDisplayPos.x;
+      const canvasY = poseDisplayPos.y;
+      const canvasWidth = poseDisplaySize.width;
+      const canvasHeight = poseDisplaySize.height;
       
-      console.log(`Pose display: pos(${poseDisplayPos.x}, ${poseDisplayPos.y}), size(${poseDisplaySize.width}x${poseDisplaySize.height})`);
-      console.log(`Pose canvas: pos(${canvasX}, ${canvasY}), size(${canvasWidth}x${canvasHeight})`);
+      console.log(`Pose canvas position: (${canvasX}, ${canvasY})`);
+      console.log(`Pose canvas size: ${canvasWidth}x${canvasHeight}`);
       
       // Use 100% opacity (no transparency)
       ctx.globalAlpha = 1.0;
