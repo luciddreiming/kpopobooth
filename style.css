@@ -103,7 +103,7 @@ header h1 {
 .pose-image {
   width: 100%;
   height: 100px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px 8px 0 0;
   background: white;
 }
@@ -212,7 +212,8 @@ header h1 {
 .slot-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: white;
 }
 
 .slot-label {
@@ -391,7 +392,7 @@ button {
   transform: scaleX(-1); /* Mirror the camera feed */
 }
 
-/* Permanent Pose Overlay (100% opacity, fixed size) */
+/* Pose Overlay Container - FIXED FOR CONSISTENT POSITIONING */
 .pose-overlay.permanent {
   position: absolute;
   top: 0;
@@ -407,14 +408,17 @@ button {
 }
 
 .pose-overlay-image {
-  width: auto !important;
-  height: auto !important;
-  max-width: 80% !important;
-  max-height: 80% !important;
-  object-fit: contain !important;
+  max-width: 200px; /* MATCH POSE SELECTION PAGE SIZE */
+  max-height: 150px; /* MATCH POSE SELECTION PAGE SIZE */
+  width: auto;
+  height: auto;
+  object-fit: contain;
   opacity: 1;
   mix-blend-mode: normal;
   filter: drop-shadow(0 0 20px rgba(255, 204, 0, 0.7));
+  background: white;
+  padding: 5px;
+  border-radius: 8px;
 }
 
 .camera-permission,
@@ -673,7 +677,8 @@ button {
 .taken-photo-preview {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: white;
 }
 
 .taken-photo-number {
@@ -783,6 +788,11 @@ button {
   .pose-info {
     text-align: center;
   }
+  
+  .pose-overlay-image {
+    max-width: 160px;
+    max-height: 120px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -805,6 +815,7 @@ button {
   
   .slot {
     width: 200px;
+    height: 150px;
   }
   
   .auto-capture-countdown {
@@ -816,5 +827,10 @@ button {
   
   .auto-countdown-number {
     font-size: 28px;
+  }
+  
+  .pose-overlay-image {
+    max-width: 160px;
+    max-height: 120px;
   }
 }
