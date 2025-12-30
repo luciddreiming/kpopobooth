@@ -13,11 +13,11 @@
 <body>
   <!-- Main container with all pages -->
   <div class="container">
-    <!-- ===== PAGE 1 (POSE SELECTION) ===== -->
+    <!-- ===== PAGE 1 (POSE & TIMER SELECTION) ===== -->
     <section id="page-poses" class="page page-poses active">
       <header>
         <h1>Photo Booth</h1>
-        <p class="subtitle">Select up to 4 poses for your photo session</p>
+        <p class="subtitle">Select up to 4 poses and timer for your photo session</p>
       </header>
       
       <div class="pose-grid">
@@ -58,57 +58,32 @@
         </div>
       </div>
       
-      <div class="settings-panel">
-        <h3>Capture Settings</h3>
-        <div class="settings-grid">
-          <div class="setting-group">
-            <label for="capture-timer"><i class="fas fa-clock"></i> Capture Timer</label>
-            <div class="timer-options">
-              <button class="timer-option active" data-seconds="3">3 seconds</button>
-              <button class="timer-option" data-seconds="5">5 seconds</button>
-              <button class="timer-option" data-seconds="10">10 seconds</button>
-            </div>
-          </div>
-          <div class="setting-group">
-            <label><i class="fas fa-camera"></i> Capture Mode</label>
-            <div class="capture-mode">
-              <div class="mode-option active">
-                <i class="fas fa-robot"></i>
-                <span>Automatic</span>
-                <small>Photos capture automatically</small>
-              </div>
-            </div>
-          </div>
-          <div class="setting-group">
-            <label><i class="fas fa-image"></i> Photo Blend</label>
-            <div class="blend-info">
-              <div class="blend-preview">
-                <div class="preview-layer bg-layer">Background</div>
-                <div class="preview-layer user-layer">+ Your Photo</div>
-                <div class="preview-result">= Final Result</div>
-              </div>
-              <p class="blend-description">Your selected pose will be permanently blended with your photo</p>
-            </div>
-          </div>
+      <div class="timer-selection">
+        <h3>Select Capture Timer</h3>
+        <div class="timer-options">
+          <button class="timer-option" data-seconds="3">3 Seconds</button>
+          <button class="timer-option" data-seconds="5">5 Seconds</button>
+          <button class="timer-option" data-seconds="10">10 Seconds</button>
         </div>
+        <p class="timer-info">Photos will be captured automatically after the timer</p>
       </div>
       
       <div class="controls">
         <button id="startSession" class="btn-primary" disabled>
-          <i class="fas fa-play-circle"></i> Start Photo Session (0/4)
+          Start Photo Session (0/4)
         </button>
         <button id="clearSelection" class="btn-secondary">
-          <i class="fas fa-trash"></i> Clear All
+          Clear All
         </button>
       </div>
     </section>
 
-    <!-- ===== PAGE 2 (CAMERA) ===== -->
+    <!-- ===== PAGE 2 (CAMERA - AUTO CAPTURE) ===== -->
     <section id="page-camera" class="page page-camera">
       <header>
-        <h1>Take Your Photos</h1>
+        <h1>Photo Session</h1>
         <p class="subtitle" id="current-pose-text">
-          Photo will be captured automatically in <span id="timer-display">3</span> seconds
+          Photos will be captured automatically in <span id="timer-display">5</span> seconds
         </p>
         <div class="progress-indicator">
           <span id="photo-counter">1/4</span>
@@ -121,9 +96,9 @@
           <div class="camera-viewfinder">
             <video id="cameraFeed" autoplay playsinline></video>
             
-            <!-- Permanent Background Overlay -->
-            <div id="backgroundOverlay" class="background-overlay">
-              <img id="backgroundImage" class="background-image" src="" alt="Background Pose">
+            <!-- Permanent Pose Overlay (100% opacity) -->
+            <div id="poseOverlay" class="pose-overlay permanent">
+              <img id="posePreview" class="pose-overlay-image" src="" alt="Pose Preview">
             </div>
             
             <!-- Grid overlay for alignment -->
@@ -153,68 +128,20 @@
               </button>
             </div>
             
-            <!-- Auto-capture overlay -->
-            <div class="auto-capture-overlay" id="autoCaptureOverlay">
-              <div class="auto-capture-content">
-                <h3>Get Ready!</h3>
-                <div class="auto-timer">
-                  <div class="timer-circle">
-                    <svg class="timer-svg" width="120" height="120">
-                      <circle class="timer-circle-bg" cx="60" cy="60" r="54"></circle>
-                      <circle class="timer-circle-fill" cx="60" cy="60" r="54"></circle>
-                    </svg>
-                    <span class="timer-seconds" id="autoTimer">3</span>
-                  </div>
-                </div>
-                <p class="auto-instruction">Smile! Photo will be captured automatically</p>
-              </div>
+            <!-- Auto Capture Countdown -->
+            <div class="auto-capture-countdown" id="autoCaptureCountdown">
+              <div class="auto-countdown-number">5</div>
+              <div class="auto-countdown-label">Next photo in</div>
             </div>
           </div>
           
           <!-- Flash effect -->
           <div class="flash-effect" id="flash"></div>
           
-          <!-- Manual camera controls (hidden in auto mode) -->
-          <div class="camera-controls" id="manualControls" style="display: none;">
-            <button id="prevPhoto" class="btn-nav" title="Previous pose">
-              <i class="fas fa-chevron-left"></i>
-            </button>
-            <button id="captureBtn" class="btn-capture">
-              <i class="fas fa-camera"></i>
-            </button>
-            <button id="nextPhoto" class="btn-nav" title="Next pose">
-              <i class="fas fa-chevron-right"></i>
-            </button>
-          </div>
-          
-          <!-- Camera switch button -->
-          <button id="switchCamera" class="btn-switch-camera" title="Switch camera">
-            <i class="fas fa-sync-alt"></i>
-          </button>
-          
-          <!-- Photo result preview -->
-          <div class="photo-result" id="photo-result">
-            <div class="photo-result-content">
-              <canvas id="photoCanvas"></canvas>
-              <div class="photo-result-overlay">
-                <div class="photo-success">
-                  <i class="fas fa-check-circle"></i>
-                  <h3>Photo Captured!</h3>
-                  <p>Previewing your blended photo...</p>
-                </div>
-                <div class="photo-actions">
-                  <button id="savePhoto" class="btn-secondary">
-                    <i class="fas fa-download"></i> Save
-                  </button>
-                  <button id="usePhoto" class="btn-primary">
-                    <i class="fas fa-check"></i> Continue
-                  </button>
-                  <button id="retakePhoto" class="btn-secondary">
-                    <i class="fas fa-redo"></i> Retake
-                  </button>
-                </div>
-              </div>
-            </div>
+          <!-- Auto capture status -->
+          <div class="auto-capture-status" id="autoCaptureStatus">
+            <i class="fas fa-clock"></i>
+            <span>Auto capture in progress...</span>
           </div>
         </div>
         
@@ -222,31 +149,11 @@
         <div class="camera-status">
           <div class="status-indicator">
             <span class="status-dot" id="statusDot"></span>
-            <span id="camera-status-text">Preparing camera...</span>
+            <span id="camera-status-text">Camera required</span>
           </div>
           <div class="pose-info">
             <span id="current-pose-name">-</span>
-            <span id="pose-instruction">Ready for automatic capture</span>
-          </div>
-        </div>
-        
-        <!-- Camera settings -->
-        <div class="camera-settings">
-          <div class="resolution-selector">
-            <label for="resolution">Quality:</label>
-            <select id="resolution">
-              <option value="low">Low (640x480)</option>
-              <option value="medium" selected>Medium (1280x720)</option>
-              <option value="high">High (1920x1080)</option>
-            </select>
-          </div>
-          <div class="camera-options">
-            <button id="toggleGrid" class="btn-option">
-              <i class="fas fa-th"></i> Grid
-            </button>
-            <button id="toggleMirror" class="btn-option active">
-              <i class="fas fa-exchange-alt"></i> Mirror
-            </button>
+            <span id="pose-instruction">Get ready for automatic capture!</span>
           </div>
         </div>
         
@@ -260,11 +167,8 @@
       </div>
       
       <div class="navigation-controls">
-        <button id="backToPoses" class="btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back to Poses
-        </button>
-        <button id="pauseSession" class="btn-secondary" style="display: none;">
-          <i class="fas fa-pause"></i> Pause Auto-Capture
+        <button id="cancelSession" class="btn-secondary">
+          <i class="fas fa-times"></i> Cancel Session
         </button>
         <button id="finishSession" class="btn-primary" disabled>
           Finish Session <i class="fas fa-check"></i>
