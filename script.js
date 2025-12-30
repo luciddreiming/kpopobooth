@@ -20,26 +20,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Pose data - 20 poses with image references
   const poses = [
-    { id: 1, image: "poses/pose1.png", label: "Peace Sign" },
-    { id: 2, image: "poses/pose2.png", label: "Cool Pose" },
-    { id: 3, image: "poses/pose3.png", label: "Hands on Hips" },
-    { id: 4, image: "poses/pose4.png", label: "Thumbs Up" },
-    { id: 5, image: "poses/pose5.png", label: "Jumping" },
-    { id: 6, image: "poses/pose6.png", label: "Silly Face" },
-    { id: 7, image: "poses/pose7.png", label: "Superhero" },
-    { id: 8, image: "poses/pose8.png", label: "Dancing" },
-    { id: 9, image: "poses/pose9.png", label: "Thinking" },
-    { id: 10, image: "poses/pose10.png", label: "Winking" },
-    { id: 11, image: "poses/pose11.png", label: "Heart Hands" },
-    { id: 12, image: "poses/pose12.png", label: "Surprised" },
-    { id: 13, image: "poses/pose13.png", label: "Flexing" },
-    { id: 14, image: "poses/pose14.png", label: "Blowing Kiss" },
-    { id: 15, image: "poses/pose15.png", label: "Pointing" },
-    { id: 16, image: "poses/pose16.png", label: "Celebration" },
-    { id: 17, image: "poses/pose17.png", label: "Model Pose" },
-    { id: 18, image: "poses/pose18.png", label: "Group Hug" },
-    { id: 19, image: "poses/pose19.png", label: "Sitting Pose" },
-    { id: 20, image: "poses/pose20.png", label: "Action Pose" }
+    { id: 1, image: "poses/pose1.webp", label: "Peace Sign" },
+    { id: 2, image: "poses/pose2.webp", label: "Cool Pose" },
+    { id: 3, image: "poses/pose3.webp", label: "Hands on Hips" },
+    { id: 4, image: "poses/pose4.webp", label: "Thumbs Up" },
+    { id: 5, image: "poses/pose5.webp", label: "Jumping" },
+    { id: 6, image: "poses/pose6.webp", label: "Silly Face" },
+    { id: 7, image: "poses/pose7.webp", label: "Superhero" },
+    { id: 8, image: "poses/pose8.webp", label: "Dancing" },
+    { id: 9, image: "poses/pose9.webp", label: "Thinking" },
+    { id: 10, image: "poses/pose10.webp", label: "Winking" },
+    { id: 11, image: "poses/pose11.webp", label: "Heart Hands" },
+    { id: 12, image: "poses/pose12.webp", label: "Surprised" },
+    { id: 13, image: "poses/pose13.webp", label: "Flexing" },
+    { id: 14, image: "poses/pose14.webp", label: "Blowing Kiss" },
+    { id: 15, image: "poses/pose15.webp", label: "Pointing" },
+    { id: 16, image: "poses/pose16.webp", label: "Celebration" },
+    { id: 17, image: "poses/pose17.webp", label: "Model Pose" },
+    { id: 18, image: "poses/pose18.webp", label: "Group Hug" },
+    { id: 19, image: "poses/pose19.webp", label: "Sitting Pose" },
+    { id: 20, image: "poses/pose20.webp", label: "Action Pose" }
   ];
 
   // DOM Elements
