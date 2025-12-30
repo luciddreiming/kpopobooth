@@ -83,48 +83,78 @@ document.addEventListener('DOMContentLoaded', function() {
     };
   }
 
-  // Get pose overlay display size
-  function getPoseOverlayDisplaySize() {
+  // Update pose overlay size to maintain aspect ratio
+  function updatePoseOverlaySize() {
+    if (!state.currentPoseElement || !state.cameraInitialized) return;
+    
+    const poseImg = state.currentPoseElement;
+    if (!poseImg.complete) return;
+    
+    // Get natural aspect ratio of pose image
+    const naturalWidth = poseImg.naturalWidth;
+    const naturalHeight = poseImg.naturalHeight;
+    const poseAspectRatio = naturalWidth / naturalHeight;
+    
+    // Get camera display size
     const displaySize = getCameraDisplaySize();
     
-    // Calculate size based on 80% of camera display (matching CSS max-width/max-height)
+    // Calculate size maintaining pose's natural aspect ratio
+    let width, height;
+    
+    // Use 80% of display as max (matching CSS)
     const maxWidth = displaySize.width * 0.8;
     const maxHeight = displaySize.height * 0.8;
     
-    // Get natural aspect ratio of pose image
-    const poseImg = state.loadedPoseImages[state.selectedPoses[state.currentPhotoIndex]?.id];
-    if (!poseImg || !poseImg.complete) {
-      return { width: maxWidth, height: maxHeight };
+    // Start with max width, adjust height to maintain aspect ratio
+    width = maxWidth;
+    height = width / poseAspectRatio;
+    
+    // If height exceeds max height, adjust
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * poseAspectRatio;
     }
     
-    const naturalWidth = poseImg.naturalWidth;
-    const naturalHeight = poseImg.naturalHeight;
-    const aspectRatio = naturalWidth / naturalHeight;
-    
-    // Calculate size maintaining aspect ratio
-    let displayWidth = maxWidth;
-    let displayHeight = displayWidth / aspectRatio;
-    
-    // Check if height exceeds max height
-    if (displayHeight > maxHeight) {
-      displayHeight = maxHeight;
-      displayWidth = displayHeight * aspectRatio;
+    // Ensure minimum size
+    const minSize = Math.min(displaySize.width, displaySize.height) * 0.3;
+    if (width < minSize) {
+      width = minSize;
+      height = width / poseAspectRatio;
     }
     
-    return {
-      width: displayWidth,
-      height: displayHeight
-    };
+    // Apply the calculated size
+    poseImg.style.width = width + 'px';
+    poseImg.style.height = height + 'px';
+    poseImg.style.objectFit = 'contain';
+    
+    console.log(`Pose overlay size: ${width}x${height} (aspect: ${poseAspectRatio.toFixed(2)})`);
   }
 
-  // Get pose overlay position
-  function getPoseOverlayPosition() {
+  // Get pose overlay display size for capture calculations
+  function getPoseOverlayDisplaySize() {
+    if (!state.currentPoseElement) return { width: 0, height: 0 };
+    
+    const poseImg = state.currentPoseElement;
     const displaySize = getCameraDisplaySize();
-    const poseSize = getPoseOverlayDisplaySize();
+    
+    // Use actual computed dimensions
+    const computedStyle = window.getComputedStyle(poseImg);
+    const width = parseFloat(computedStyle.width);
+    const height = parseFloat(computedStyle.height);
+    
+    return { width, height };
+  }
+
+  // Get pose overlay position for capture calculations
+  function getPoseOverlayPosition() {
+    if (!posePreview.parentElement) return { x: 0, y: 0 };
+    
+    const overlayRect = posePreview.getBoundingClientRect();
+    const cameraRect = cameraFeed.getBoundingClientRect();
     
     return {
-      x: (displaySize.width - poseSize.width) / 2,
-      y: (displaySize.height - poseSize.height) / 2
+      x: overlayRect.left - cameraRect.left,
+      y: overlayRect.top - cameraRect.top
     };
   }
 
@@ -588,10 +618,19 @@ document.addEventListener('DOMContentLoaded', function() {
         posePreview.src = currentPose.image;
         posePreview.alt = currentPose.label;
         poseOverlay.style.display = 'flex';
-        console.log(`Showing pose overlay: ${currentPose.label}`);
+        
+        // Apply consistent styling
+        posePreview.style.maxWidth = 'none';
+        posePreview.style.maxHeight = 'none';
+        posePreview.style.width = 'auto';
+        posePreview.style.height = 'auto';
         
         // Store reference to current pose element
         state.currentPoseElement = posePreview;
+        
+        // Update size after a brief delay to ensure DOM is updated
+        setTimeout(updatePoseOverlaySize, 100);
+        
       } else {
         // If not loaded yet, wait for it to load
         if (poseImg) {
@@ -599,10 +638,18 @@ document.addEventListener('DOMContentLoaded', function() {
             posePreview.src = currentPose.image;
             posePreview.alt = currentPose.label;
             poseOverlay.style.display = 'flex';
-            console.log(`Showing pose overlay after load: ${currentPose.label}`);
+            
+            // Apply consistent styling
+            posePreview.style.maxWidth = 'none';
+            posePreview.style.maxHeight = 'none';
+            posePreview.style.width = 'auto';
+            posePreview.style.height = 'auto';
             
             // Store reference to current pose element
             state.currentPoseElement = posePreview;
+            
+            // Update size
+            updatePoseOverlaySize();
           };
         }
       }
@@ -679,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
       console.log(`Drawing pose overlay: ${currentPoseData.label}`);
       
-      // Get the displayed size and position of the pose overlay
+      // Get the actual displayed size and position of the pose overlay
       const poseDisplaySize = getPoseOverlayDisplaySize();
       const poseDisplayPos = getPoseOverlayPosition();
       
@@ -1019,13 +1066,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Recalculate display dimensions on window resize
+  // Recalculate display dimensions and update pose overlay on window resize
   window.addEventListener('resize', () => {
     if (state.cameraInitialized) {
       const displaySize = getCameraDisplaySize();
       state.cameraDisplayWidth = displaySize.width;
       state.cameraDisplayHeight = displaySize.height;
       console.log(`Camera display size updated: ${state.cameraDisplayWidth}x${state.cameraDisplayHeight}`);
+      
+      // Update pose overlay size when window resizes
+      if (poseOverlay.style.display === 'flex') {
+        updatePoseOverlaySize();
+      }
     }
   });
 
