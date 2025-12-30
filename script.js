@@ -1,14 +1,12 @@
-// Photo Booth Application with Real Camera and Auto-Capture
+// Photo Booth Application with Real Camera and Automatic Capture
 document.addEventListener('DOMContentLoaded', function() {
   // Application state
   const state = {
     selectedPoses: [],
-    selectedTimer: 5, // Default 5 seconds
     currentPhotoIndex: 0,
     takenPhotos: [],
     isCapturing: false,
-    isAutoCaptureActive: false,
-    countdownActive: false,
+    autoCaptureTimer: 3, // Default: 3 seconds
     cameraStream: null,
     cameras: [],
     currentCameraIndex: 0,
@@ -16,10 +14,9 @@ document.addEventListener('DOMContentLoaded', function() {
     showGrid: false,
     resolution: 'medium',
     cameraInitialized: false,
-    sessionActive: false,
+    autoCaptureActive: false,
     loadedPoseImages: {}, // Cache for loaded pose images
-    autoCaptureTimer: null,
-    nextCaptureTimer: null
+    autoCaptureTimeout: null
   };
 
   // Pose data - 20 poses with image references
@@ -48,21 +45,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // DOM Elements
   const pagePoses = document.getElementById('page-poses');
-  const pageTimer = document.getElementById('page-timer');
   const pageCamera = document.getElementById('page-camera');
   const poseGrid = document.querySelector('.pose-grid');
   const bottomSlots = document.querySelectorAll('.slot');
   const startSessionBtn = document.getElementById('startSession');
   const clearSelectionBtn = document.getElementById('clearSelection');
-  const backToPosesFromTimerBtn = document.getElementById('backToPosesFromTimer');
-  const proceedToCameraBtn = document.getElementById('proceedToCamera');
-  const backToTimerBtn = document.getElementById('backToTimer');
-  const startSessionCameraBtn = document.getElementById('startSessionBtn');
-  const pauseSessionBtn = document.getElementById('pauseSessionBtn');
-  const restartSessionBtn = document.getElementById('restartSessionBtn');
+  const backToPosesBtn = document.getElementById('backToPoses');
+  const timerOptions = document.querySelectorAll('.timer-option');
+  const captureBtn = document.getElementById('captureBtn');
+  const prevPhotoBtn = document.getElementById('prevPhoto');
+  const nextPhotoBtn = document.getElementById('nextPhoto');
   const finishSessionBtn = document.getElementById('finishSession');
   const photoCounter = document.getElementById('photo-counter');
-  const currentTimerDisplay = document.getElementById('current-timer');
+  const timerDisplay = document.getElementById('timer-display');
   const countdown = document.getElementById('countdown');
   const countdownNumber = countdown.querySelector('.countdown-number');
   const flash = document.getElementById('flash');
@@ -78,19 +73,32 @@ document.addEventListener('DOMContentLoaded', function() {
   const toggleGridBtn = document.getElementById('toggleGrid');
   const toggleMirrorBtn = document.getElementById('toggleMirror');
   const resolutionSelect = document.getElementById('resolution');
+  const savePhotoBtn = document.getElementById('savePhoto');
+  const usePhotoBtn = document.getElementById('usePhoto');
   const retakePhotoBtn = document.getElementById('retakePhoto');
-  const continueSessionBtn = document.getElementById('continueSession');
   const takenPhotosGrid = document.getElementById('taken-photos');
   const cameraStatusText = document.getElementById('camera-status-text');
   const currentPoseName = document.getElementById('current-pose-name');
   const poseInstruction = document.getElementById('pose-instruction');
   const statusDot = document.getElementById('statusDot');
-  const poseOverlay = document.getElementById('poseOverlay');
-  const posePreview = document.getElementById('posePreview');
-  const autoCaptureInfo = document.getElementById('autoCaptureInfo');
-  const nextCaptureCountdown = document.getElementById('nextCaptureCountdown');
-  const selectedTimerDisplay = document.getElementById('selectedTimer');
-  const timerOptions = document.querySelectorAll('.timer-option');
+  const backgroundOverlay = document.getElementById('backgroundOverlay');
+  const backgroundImage = document.getElementById('backgroundImage');
+  const autoCaptureOverlay = document.getElementById('autoCaptureOverlay');
+  const autoTimerDisplay = document.getElementById('autoTimer');
+  const pauseSessionBtn = document.getElementById('pauseSession');
+  const timerCircleFill = document.querySelector('.timer-circle-fill');
+
+  // Preload pose images when poses are selected
+  function preloadPoseImages() {
+    state.selectedPoses.forEach(pose => {
+      if (!state.loadedPoseImages[pose.id]) {
+        const img = new Image();
+        img.src = pose.image;
+        img.crossOrigin = "anonymous";
+        state.loadedPoseImages[pose.id] = img;
+      }
+    });
+  }
 
   // Initialize the pose selection page
   function initPoseSelection() {
@@ -117,31 +125,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize taken photos grid
     initTakenPhotosGrid();
     
-    // Initialize timer selection
-    initTimerSelection();
+    // Setup timer options
+    setupTimerOptions();
   }
 
-  // Initialize timer selection
-  function initTimerSelection() {
+  // Setup timer options
+  function setupTimerOptions() {
     timerOptions.forEach(option => {
-      option.addEventListener('click', () => {
-        // Remove selected class from all options
-        timerOptions.forEach(opt => opt.classList.remove('selected'));
+      option.addEventListener('click', function() {
+        // Remove active class from all options
+        timerOptions.forEach(opt => opt.classList.remove('active'));
         
-        // Add selected class to clicked option
-        option.classList.add('selected');
+        // Add active class to clicked option
+        this.classList.add('active');
         
-        // Update selected timer
-        state.selectedTimer = parseInt(option.dataset.timer);
-        selectedTimerDisplay.textContent = `${state.selectedTimer} seconds`;
-        currentTimerDisplay.textContent = state.selectedTimer;
+        // Update timer value
+        state.autoCaptureTimer = parseInt(this.dataset.seconds);
+        timerDisplay.textContent = state.autoCaptureTimer;
       });
     });
-    
-    // Select 5 seconds by default
-    timerOptions[1].classList.add('selected');
-    selectedTimerDisplay.textContent = '5 seconds';
-    currentTimerDisplay.textContent = '5';
   }
 
   // Initialize the taken photos grid on camera page
@@ -265,20 +267,9 @@ document.addEventListener('DOMContentLoaded', function() {
     updateStartButton();
   }
 
-  // Go to timer selection page
-  function goToTimerPage() {
-    if (state.selectedPoses.length === 0) {
-      alert('Please select at least one pose!');
-      return;
-    }
-    
-    pagePoses.classList.remove('active');
-    pageTimer.classList.add('active');
-  }
-
-  // Go to camera page
+  // Switch to camera page
   function goToCameraPage() {
-    pageTimer.classList.remove('active');
+    pagePoses.classList.remove('active');
     pageCamera.classList.add('active');
     
     // Preload all pose images
@@ -288,8 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
     state.currentPhotoIndex = 0;
     state.takenPhotos = [];
     state.isCapturing = false;
-    state.countdownActive = false;
-    state.sessionActive = false;
+    state.autoCaptureActive = false;
     state.cameraInitialized = false;
     
     // Update camera page
@@ -301,9 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update buttons
     finishSessionBtn.disabled = true;
-    startSessionCameraBtn.style.display = 'flex';
-    pauseSessionBtn.style.display = 'none';
-    restartSessionBtn.disabled = true;
+    captureBtn.disabled = true;
     
     // Show camera permission screen first
     showCameraPermissionScreen();
@@ -311,21 +299,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update status
     updateCameraStatus('Camera permission required');
     statusDot.classList.remove('active');
-    
-    // Hide auto-capture info initially
-    autoCaptureInfo.style.display = 'none';
-  }
-
-  // Preload pose images when poses are selected
-  function preloadPoseImages() {
-    state.selectedPoses.forEach(pose => {
-      if (!state.loadedPoseImages[pose.id]) {
-        const img = new Image();
-        img.src = pose.image;
-        img.crossOrigin = "anonymous";
-        state.loadedPoseImages[pose.id] = img;
-      }
-    });
   }
 
   // Request camera permission
@@ -375,11 +348,10 @@ document.addEventListener('DOMContentLoaded', function() {
       state.cameraInitialized = true;
       
       // Update pose overlay
-      updatePoseOverlay();
+      updateBackgroundOverlay();
       
-      // Enable session start button
-      startSessionCameraBtn.disabled = false;
-      restartSessionBtn.disabled = false;
+      // Start auto-capture sequence
+      startAutoCaptureSequence();
       
     } catch (error) {
       console.error('Camera initialization error:', error);
@@ -439,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
       cameraError.style.display = 'none';
       
       // Update status
-      updateCameraStatus('Camera ready - Start session when ready');
+      updateCameraStatus('Camera ready - Get ready for auto-capture!');
       statusDot.classList.add('active');
       
     } catch (error) {
@@ -500,7 +472,6 @@ document.addEventListener('DOMContentLoaded', function() {
     cameraError.style.display = 'none';
     updateCameraStatus('Camera permission required');
     statusDot.classList.remove('active');
-    startSessionCameraBtn.disabled = true;
   }
 
   // Show camera error
@@ -510,7 +481,6 @@ document.addEventListener('DOMContentLoaded', function() {
     errorMessage.textContent = message;
     updateCameraStatus('Camera error');
     statusDot.classList.remove('active');
-    startSessionCameraBtn.disabled = true;
   }
 
   // Update camera status text
@@ -526,48 +496,18 @@ document.addEventListener('DOMContentLoaded', function() {
       state.cameraStream = null;
     }
     
-    // Reset camera state
-    state.cameraInitialized = false;
-    state.sessionActive = false;
-    
-    // Clear timers
-    if (state.autoCaptureTimer) {
-      clearTimeout(state.autoCaptureTimer);
-      state.autoCaptureTimer = null;
-    }
-    if (state.nextCaptureTimer) {
-      clearInterval(state.nextCaptureTimer);
-      state.nextCaptureTimer = null;
-    }
-    
-    pageTimer.classList.remove('active');
-    pagePoses.classList.add('active');
-  }
-
-  // Switch back to timer page
-  function goBackToTimer() {
-    // Stop camera stream
-    if (state.cameraStream) {
-      state.cameraStream.getTracks().forEach(track => track.stop());
-      state.cameraStream = null;
+    // Clear any pending auto-capture
+    if (state.autoCaptureTimeout) {
+      clearTimeout(state.autoCaptureTimeout);
+      state.autoCaptureTimeout = null;
     }
     
     // Reset camera state
     state.cameraInitialized = false;
-    state.sessionActive = false;
-    
-    // Clear timers
-    if (state.autoCaptureTimer) {
-      clearTimeout(state.autoCaptureTimer);
-      state.autoCaptureTimer = null;
-    }
-    if (state.nextCaptureTimer) {
-      clearInterval(state.nextCaptureTimer);
-      state.nextCaptureTimer = null;
-    }
+    state.autoCaptureActive = false;
     
     pageCamera.classList.remove('active');
-    pageTimer.classList.add('active');
+    pagePoses.classList.add('active');
   }
 
   // Update camera page with current pose
@@ -579,34 +519,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update counter
     photoCounter.textContent = `${state.currentPhotoIndex + 1}/${state.selectedPoses.length}`;
     
-    // Update timer display
-    currentTimerDisplay.textContent = state.selectedTimer;
-    
-    // Update pose overlay
-    updatePoseOverlay();
-    
     // Update pose info in status bar
     currentPoseName.textContent = currentPoseData.label;
     poseInstruction.textContent = getPoseInstruction(currentPoseData.label);
     
     // Update navigation buttons
-    restartSessionBtn.disabled = false;
+    prevPhotoBtn.disabled = state.currentPhotoIndex === 0;
+    nextPhotoBtn.disabled = state.currentPhotoIndex === state.selectedPoses.length - 1;
     
     // Update taken photos highlight
     updateTakenPhotosHighlight();
+    
+    // Update background overlay
+    updateBackgroundOverlay();
   }
 
-  // Update pose overlay
-  function updatePoseOverlay() {
+  // Update background overlay with current pose
+  function updateBackgroundOverlay() {
     if (state.selectedPoses.length === 0) return;
     
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
-    posePreview.src = currentPoseData.image;
-    posePreview.alt = currentPoseData.label;
     
-    // Always show pose overlay at 100% opacity
-    poseOverlay.style.display = 'flex';
-    posePreview.style.opacity = '1';
+    // Update background image
+    backgroundImage.src = currentPoseData.image;
+    backgroundImage.alt = currentPoseData.label;
+    
+    // Show the overlay
+    backgroundOverlay.style.display = 'block';
   }
 
   // Get instruction based on pose
@@ -634,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
       "Action Pose": "Show some action movie energy!"
     };
     
-    return instructions[poseLabel] || "Get ready for the photo!";
+    return instructions[poseLabel] || "Get ready for automatic capture!";
   }
 
   // Update camera UI based on state
@@ -644,10 +583,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isTaken) {
       // Show captured photo
       photoResult.style.display = 'block';
-      autoCaptureInfo.style.display = 'none';
+      pauseSessionBtn.style.display = 'none';
     } else {
       // Show camera view
       photoResult.style.display = 'none';
+      pauseSessionBtn.style.display = 'flex';
     }
   }
 
@@ -664,160 +604,90 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Start the photo session
-  function startPhotoSession() {
-    if (!state.cameraInitialized) {
-      alert('Please enable camera first!');
-      return;
-    }
-    
-    if (state.sessionActive) return;
-    
-    state.sessionActive = true;
-    state.isAutoCaptureActive = true;
-    
-    // Update UI
-    startSessionCameraBtn.style.display = 'none';
-    pauseSessionBtn.style.display = 'flex';
-    restartSessionBtn.disabled = true;
-    
-    // Show auto-capture info
-    autoCaptureInfo.style.display = 'flex';
-    
-    // Start the auto-capture sequence
-    startAutoCapture();
-  }
-
-  // Pause the photo session
-  function pausePhotoSession() {
-    if (!state.sessionActive) return;
-    
-    state.sessionActive = false;
-    state.isAutoCaptureActive = false;
-    
-    // Update UI
-    startSessionCameraBtn.style.display = 'flex';
-    pauseSessionBtn.style.display = 'none';
-    restartSessionBtn.disabled = false;
-    
-    // Hide auto-capture info
-    autoCaptureInfo.style.display = 'none';
-    
-    // Clear timers
-    if (state.autoCaptureTimer) {
-      clearTimeout(state.autoCaptureTimer);
-      state.autoCaptureTimer = null;
-    }
-    if (state.nextCaptureTimer) {
-      clearInterval(state.nextCaptureTimer);
-      state.nextCaptureTimer = null;
-    }
-    
-    updateCameraStatus('Session paused');
-  }
-
-  // Restart the photo session
-  function restartPhotoSession() {
-    // Clear all taken photos
-    state.takenPhotos = [];
-    state.currentPhotoIndex = 0;
-    state.sessionActive = false;
-    state.isAutoCaptureActive = false;
-    
-    // Update UI
-    updateTakenPhotosGrid();
-    updateCameraPage();
-    updateCameraUI();
-    
-    // Clear timers
-    if (state.autoCaptureTimer) {
-      clearTimeout(state.autoCaptureTimer);
-      state.autoCaptureTimer = null;
-    }
-    if (state.nextCaptureTimer) {
-      clearInterval(state.nextCaptureTimer);
-      state.nextCaptureTimer = null;
-    }
-    
-    // Hide auto-capture info
-    autoCaptureInfo.style.display = 'none';
-    
-    // Update status
-    updateCameraStatus('Ready to start session');
-    
-    // Update finish button
-    updateFinishButton();
-  }
-
   // Start auto-capture sequence
-  function startAutoCapture() {
-    if (!state.isAutoCaptureActive || state.currentPhotoIndex >= state.selectedPoses.length) return;
-    
-    // Check if current photo is already taken
+  function startAutoCaptureSequence() {
     if (state.takenPhotos[state.currentPhotoIndex]) {
-      // Move to next photo
-      navigateToNextPhoto();
-      return;
+      // Photo already taken for this pose, move to next
+      if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
+        navigateToNextPhoto();
+        return;
+      } else {
+        // All photos taken
+        return;
+      }
     }
     
-    // Update status
-    updateCameraStatus(`Auto-capture active - Next photo in ${state.selectedTimer} seconds`);
-    
-    // Start countdown for next capture
-    startNextCaptureCountdown();
+    // Start the auto-capture timer
+    startAutoCaptureTimer();
   }
 
-  // Start countdown for next capture
-  function startNextCaptureCountdown() {
-    let timeLeft = state.selectedTimer;
-    nextCaptureCountdown.textContent = timeLeft;
+  // Start the auto-capture timer
+  function startAutoCaptureTimer() {
+    state.autoCaptureActive = true;
     
-    // Update countdown every second
-    state.nextCaptureTimer = setInterval(() => {
+    // Show auto-capture overlay
+    autoCaptureOverlay.classList.add('active');
+    
+    let timeLeft = state.autoCaptureTimer;
+    autoTimerDisplay.textContent = timeLeft;
+    
+    // Calculate the stroke dashoffset for the circle timer
+    const circumference = 2 * Math.PI * 54; // 2πr, r=54
+    const initialOffset = circumference;
+    
+    // Reset the timer circle
+    timerCircleFill.style.strokeDashoffset = initialOffset;
+    
+    // Start countdown
+    const countdownInterval = setInterval(() => {
       timeLeft--;
-      nextCaptureCountdown.textContent = timeLeft;
+      autoTimerDisplay.textContent = timeLeft;
+      
+      // Update the timer circle
+      const progress = (state.autoCaptureTimer - timeLeft) / state.autoCaptureTimer;
+      const offset = initialOffset - (progress * circumference);
+      timerCircleFill.style.strokeDashoffset = offset;
       
       if (timeLeft <= 0) {
-        clearInterval(state.nextCaptureTimer);
-        state.nextCaptureTimer = null;
-        
-        // Start the capture countdown
-        startCaptureCountdown();
-      }
-    }, 1000);
-  }
-
-  // Start the capture countdown (3, 2, 1, SMILE!)
-  function startCaptureCountdown() {
-    state.countdownActive = true;
-    updateCameraStatus('Get ready...');
-    
-    // Hide auto-capture info during countdown
-    autoCaptureInfo.style.display = 'none';
-    
-    // Show countdown
-    let count = 3;
-    countdownNumber.textContent = count;
-    countdown.style.display = 'flex';
-    
-    const countdownInterval = setInterval(() => {
-      count--;
-      countdownNumber.textContent = count > 0 ? count : 'SMILE!';
-      
-      if (count <= 0) {
         clearInterval(countdownInterval);
         
-        // Hide countdown
-        countdown.style.display = 'none';
-        state.countdownActive = false;
+        // Hide auto-capture overlay
+        autoCaptureOverlay.classList.remove('active');
         
-        // Take the photo
+        // Capture the photo
         takePhoto();
       }
     }, 1000);
+    
+    // Store the timeout reference
+    state.autoCaptureTimeout = setTimeout(() => {
+      clearInterval(countdownInterval);
+    }, state.autoCaptureTimer * 1000);
   }
 
-  // Take the photo
+  // Pause auto-capture
+  function pauseAutoCapture() {
+    state.autoCaptureActive = false;
+    
+    // Hide auto-capture overlay
+    autoCaptureOverlay.classList.remove('active');
+    
+    // Clear any pending timeout
+    if (state.autoCaptureTimeout) {
+      clearTimeout(state.autoCaptureTimeout);
+      state.autoCaptureTimeout = null;
+    }
+    
+    // Show pause button
+    pauseSessionBtn.style.display = 'none';
+  }
+
+  // Resume auto-capture
+  function resumeAutoCapture() {
+    startAutoCaptureSequence();
+  }
+
+  // Main photo capture function
   function takePhoto() {
     state.isCapturing = true;
     updateCameraStatus('Capturing...');
@@ -833,32 +703,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
     const poseImg = state.loadedPoseImages[currentPoseData.id];
     
-    // Draw pose background at 100% opacity
+    // ===============================
+    // 1️⃣ PERMANENT BACKGROUND (100% opacity)
+    // ===============================
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    
     if (poseImg && poseImg.complete) {
+      // Calculate aspect ratios
       const poseAspect = poseImg.width / poseImg.height;
       const canvasAspect = videoWidth / videoHeight;
       
       let sx, sy, sWidth, sHeight;
       
       if (poseAspect > canvasAspect) {
+        // Pose is wider than canvas
         sWidth = poseImg.height * canvasAspect;
         sHeight = poseImg.height;
         sx = (poseImg.width - sWidth) / 2;
         sy = 0;
       } else {
+        // Pose is taller than canvas
         sWidth = poseImg.width;
         sHeight = poseImg.width / canvasAspect;
         sx = 0;
         sy = (poseImg.height - sHeight) / 2;
       }
       
-      // Draw background pose
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
+      // Draw background at full opacity
       ctx.drawImage(poseImg, sx, sy, sWidth, sHeight, 0, 0, videoWidth, videoHeight);
     }
     
-    // Draw user camera feed
+    // ===============================
+    // 2️⃣ USER CAMERA IMAGE
+    // ===============================
     ctx.save();
     
     if (state.isMirrored) {
@@ -866,29 +744,44 @@ document.addEventListener('DOMContentLoaded', function() {
       ctx.scale(-1, 1);
     }
     
+    // Draw user image (also at full opacity)
     ctx.globalAlpha = 1;
     ctx.drawImage(cameraFeed, 0, 0, videoWidth, videoHeight);
+    
     ctx.restore();
     
-    // Add photo info
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
-    
-    ctx.font = 'bold 24px Poppins';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
-    
-    ctx.font = '16px Poppins';
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
-    
-    // Complete the photo capture
     completePhotoCapture();
   }
 
   // Complete the photo capture process
   function completePhotoCapture() {
+    const ctx = photoCanvas.getContext('2d');
+    const videoWidth = cameraFeed.videoWidth;
+    const videoHeight = cameraFeed.videoHeight;
+    const currentPoseData = state.selectedPoses[state.currentPhotoIndex];
+    
+    // Add photo information overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, videoHeight - 80, videoWidth, 80);
+    
+    // Add pose label
+    ctx.font = 'bold 24px Poppins';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 45);
+    
+    // Add photo number
+    ctx.font = '18px Poppins';
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 15);
+    
+    // Add timestamp
+    ctx.font = '14px Poppins';
+    ctx.fillStyle = '#aaa';
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    ctx.fillText(`Captured at ${timeString}`, videoWidth / 2, videoHeight - 65);
+    
     // Show flash effect
     flash.style.opacity = '1';
     
@@ -903,8 +796,8 @@ document.addEventListener('DOMContentLoaded', function() {
       const photoData = photoCanvas.toDataURL('image/jpeg', 0.9);
       state.takenPhotos[state.currentPhotoIndex] = {
         data: photoData,
-        label: state.selectedPoses[state.currentPhotoIndex].label,
-        poseId: state.selectedPoses[state.currentPhotoIndex].id
+        label: currentPoseData.label,
+        poseId: currentPoseData.id
       };
       
       // Update taken photos grid
@@ -916,15 +809,17 @@ document.addEventListener('DOMContentLoaded', function() {
       state.isCapturing = false;
       updateCameraStatus('Photo captured!');
       
-      // Auto-advance to next pose after 3 seconds
-      setTimeout(() => {
-        if (state.isAutoCaptureActive) {
-          navigateToNextPhoto();
-        }
-      }, 3000);
-      
       // Update finish button
       updateFinishButton();
+      
+      // Auto-advance to next pose after 3 seconds if not the last one
+      if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
+        setTimeout(() => {
+          if (!state.isCapturing) {
+            navigateToNextPhoto();
+          }
+        }, 3000);
+      }
     }, 500);
   }
 
@@ -956,7 +851,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function showCapturedPhoto() {
     // Show photo result
     photoResult.style.display = 'block';
-    autoCaptureInfo.style.display = 'none';
+    pauseSessionBtn.style.display = 'none';
   }
 
   // Update the taken photos grid
@@ -999,47 +894,35 @@ document.addEventListener('DOMContentLoaded', function() {
   // Navigate to a specific photo
   function navigateToPhoto(index) {
     if (index >= 0 && index < state.selectedPoses.length) {
+      // Pause any active auto-capture
+      pauseAutoCapture();
+      
       state.currentPhotoIndex = index;
       updateCameraPage();
       updateCameraUI();
       
-      // If session is active, resume auto-capture
-      if (state.sessionActive && !state.takenPhotos[index]) {
-        state.isAutoCaptureActive = true;
-        autoCaptureInfo.style.display = 'flex';
-        startAutoCapture();
-      } else if (state.sessionActive) {
-        // If photo is already taken, move to next
-        navigateToNextPhoto();
+      if (state.cameraInitialized) {
+        updateCameraStatus('Ready for next photo');
+        
+        // If photo not taken yet, restart auto-capture
+        if (!state.takenPhotos[index]) {
+          startAutoCaptureSequence();
+        }
       }
+    }
+  }
+
+  // Navigate to previous photo
+  function navigateToPrevPhoto() {
+    if (state.currentPhotoIndex > 0) {
+      navigateToPhoto(state.currentPhotoIndex - 1);
     }
   }
 
   // Navigate to next photo
   function navigateToNextPhoto() {
     if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
-      state.currentPhotoIndex++;
-      updateCameraPage();
-      updateCameraUI();
-      
-      // Resume auto-capture if session is active
-      if (state.sessionActive && state.isAutoCaptureActive) {
-        startAutoCapture();
-      }
-    } else {
-      // All photos taken, pause session
-      state.sessionActive = false;
-      state.isAutoCaptureActive = false;
-      startSessionCameraBtn.style.display = 'flex';
-      pauseSessionBtn.style.display = 'none';
-      autoCaptureInfo.style.display = 'none';
-      
-      if (state.nextCaptureTimer) {
-        clearInterval(state.nextCaptureTimer);
-        state.nextCaptureTimer = null;
-      }
-      
-      updateCameraStatus('All photos captured!');
+      navigateToPhoto(state.currentPhotoIndex + 1);
     }
   }
 
@@ -1052,27 +935,14 @@ document.addEventListener('DOMContentLoaded', function() {
     updateTakenPhotosGrid();
     updateCameraUI();
     
-    // Resume auto-capture if session is active
-    if (state.sessionActive && state.isAutoCaptureActive) {
-      autoCaptureInfo.style.display = 'flex';
-      startAutoCapture();
-    } else {
-      updateCameraStatus('Ready to capture');
+    // Start auto-capture sequence again
+    if (state.cameraInitialized) {
+      startAutoCaptureSequence();
+      updateCameraStatus('Ready for auto-capture');
     }
     
     // Update finish button
     updateFinishButton();
-  }
-
-  // Continue session after viewing photo
-  function continueSession() {
-    photoResult.style.display = 'none';
-    
-    // Resume auto-capture if session is active
-    if (state.sessionActive && state.isAutoCaptureActive) {
-      autoCaptureInfo.style.display = 'flex';
-      startAutoCapture();
-    }
   }
 
   // Switch to next camera
@@ -1084,9 +954,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     await startCamera();
     
-    // Resume session if it was active
-    if (state.sessionActive && state.isAutoCaptureActive) {
-      startAutoCapture();
+    // Restart auto-capture if not paused
+    if (state.autoCaptureActive) {
+      startAutoCaptureSequence();
     }
   }
 
@@ -1130,9 +1000,36 @@ document.addEventListener('DOMContentLoaded', function() {
     
     await startCamera();
     
-    // Resume session if it was active
-    if (state.sessionActive && state.isAutoCaptureActive) {
-      startAutoCapture();
+    // Restart auto-capture if not paused
+    if (state.autoCaptureActive) {
+      startAutoCaptureSequence();
+    }
+  }
+
+  // Save photo to device
+  function savePhoto() {
+    const photo = state.takenPhotos[state.currentPhotoIndex];
+    if (!photo) return;
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = photo.data;
+    link.download = `photo-booth-${state.currentPhotoIndex + 1}-${photo.label.toLowerCase().replace(/\s+/g, '-')}.jpg`;
+    link.click();
+    
+    updateCameraStatus('Photo saved!');
+  }
+
+  // Use photo (continue with this photo)
+  function usePhoto() {
+    photoResult.style.display = 'none';
+    
+    // If we have more photos to take, continue
+    if (state.currentPhotoIndex < state.selectedPoses.length - 1) {
+      navigateToNextPhoto();
+    } else {
+      // All photos taken, show finish button
+      pauseSessionBtn.style.display = 'none';
     }
   }
 
@@ -1174,15 +1071,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Event Listeners
-  startSessionBtn.addEventListener('click', goToTimerPage);
+  startSessionBtn.addEventListener('click', goToCameraPage);
   clearSelectionBtn.addEventListener('click', clearSelection);
-  backToPosesFromTimerBtn.addEventListener('click', goToPoseSelectionPage);
-  proceedToCameraBtn.addEventListener('click', goToCameraPage);
-  backToTimerBtn.addEventListener('click', goBackToTimer);
-  startSessionCameraBtn.addEventListener('click', startPhotoSession);
-  pauseSessionBtn.addEventListener('click', pausePhotoSession);
-  restartSessionBtn.addEventListener('click', restartPhotoSession);
-  finishSessionBtn.addEventListener('click', finishSession);
+  backToPosesBtn.addEventListener('click', goToPoseSelectionPage);
   
   // Request camera permission when user clicks "Enable Camera"
   requestCameraBtn.addEventListener('click', async () => {
@@ -1205,8 +1096,22 @@ document.addEventListener('DOMContentLoaded', function() {
   toggleGridBtn.addEventListener('click', toggleGrid);
   toggleMirrorBtn.addEventListener('click', toggleMirror);
   resolutionSelect.addEventListener('change', changeResolution);
+  savePhotoBtn.addEventListener('click', savePhoto);
+  usePhotoBtn.addEventListener('click', usePhoto);
   retakePhotoBtn.addEventListener('click', retakeCurrentPhoto);
-  continueSessionBtn.addEventListener('click', continueSession);
+  prevPhotoBtn.addEventListener('click', navigateToPrevPhoto);
+  nextPhotoBtn.addEventListener('click', navigateToNextPhoto);
+  
+  // Pause session button
+  pauseSessionBtn.addEventListener('click', function() {
+    if (state.autoCaptureActive) {
+      pauseAutoCapture();
+      this.innerHTML = '<i class="fas fa-play"></i> Resume Auto-Capture';
+    } else {
+      resumeAutoCapture();
+      this.innerHTML = '<i class="fas fa-pause"></i> Pause Auto-Capture';
+    }
+  });
 
   // Initialize the application
   initPoseSelection();
