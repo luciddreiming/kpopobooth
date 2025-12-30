@@ -368,7 +368,7 @@ button {
 .camera-frame {
   width: 100%;
   max-width: 900px;
-  aspect-ratio: 16 / 9;
+  height: 550px;
   background: #000;
   border-radius: 20px;
   position: relative;
