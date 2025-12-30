@@ -68,15 +68,64 @@
       </div>
     </section>
 
-    <!-- ===== PAGE 2 (CAMERA) ===== -->
+    <!-- ===== PAGE 2 (TIMER SELECTION) ===== -->
+    <section id="page-timer" class="page page-timer">
+      <header>
+        <h1>Timer Settings</h1>
+        <p class="subtitle">Choose the countdown timer for your photos</p>
+      </header>
+      
+      <div class="timer-selection">
+        <div class="timer-options">
+          <div class="timer-option" data-timer="3">
+            <div class="timer-circle">3</div>
+            <h3>3 Seconds</h3>
+            <p>Quick countdown</p>
+          </div>
+          <div class="timer-option" data-timer="5">
+            <div class="timer-circle">5</div>
+            <h3>5 Seconds</h3>
+            <p>Standard timing</p>
+          </div>
+          <div class="timer-option" data-timer="10">
+            <div class="timer-circle">10</div>
+            <h3>10 Seconds</h3>
+            <p>Extra time to pose</p>
+          </div>
+        </div>
+        
+        <div class="selected-timer-info">
+          <div class="selected-timer-display">
+            <span>Selected Timer:</span>
+            <div class="timer-value" id="selectedTimer">5 seconds</div>
+          </div>
+          
+          <div class="timer-description">
+            <p><i class="fas fa-info-circle"></i> The camera will automatically capture photos for each pose after the countdown.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="navigation-controls">
+        <button id="backToPosesFromTimer" class="btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Poses
+        </button>
+        <button id="proceedToCamera" class="btn-primary">
+          Proceed to Camera <i class="fas fa-camera"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== PAGE 3 (CAMERA) ===== -->
     <section id="page-camera" class="page page-camera">
       <header>
-        <h1>Take Your Photos</h1>
+        <h1>Photo Session</h1>
         <p class="subtitle" id="current-pose-text">
-          Please align yourself with the photo frame and strike a pose!
+          Camera will automatically capture photos
         </p>
         <div class="progress-indicator">
           <span id="photo-counter">1/4</span>
+          <span class="timer-indicator">Timer: <span id="current-timer">5</span>s</span>
         </div>
       </header>
       
@@ -86,16 +135,9 @@
           <div class="camera-viewfinder">
             <video id="cameraFeed" autoplay playsinline></video>
             
-            <!-- Pose Overlay (Transparent pose image overlay) -->
+            <!-- Pose Overlay (Permanent background) -->
             <div id="poseOverlay" class="pose-overlay">
               <img id="posePreview" class="pose-overlay-image" src="" alt="Pose Preview">
-            </div>
-            
-            <!-- Pose reference overlay -->
-            <div class="pose-reference" id="current-pose-reference">
-              <div class="pose-reference-label">Your Pose</div>
-              <img src="" alt="Pose reference" class="pose-reference-image">
-              <div class="pose-reference-instruction">Look at the camera and smile!</div>
             </div>
             
             <!-- Grid overlay for alignment -->
@@ -124,6 +166,16 @@
                 Try Again
               </button>
             </div>
+            
+            <!-- Auto-capture info -->
+            <div class="auto-capture-info" id="autoCaptureInfo">
+              <div class="info-content">
+                <i class="fas fa-robot"></i>
+                <h3>Auto-Capture Mode</h3>
+                <p>Photos will be taken automatically after countdown</p>
+                <p class="countdown-info">Next photo in: <span id="nextCaptureCountdown">5</span> seconds</p>
+              </div>
+            </div>
           </div>
           
           <!-- Countdown overlay -->
@@ -134,16 +186,16 @@
           <!-- Flash effect -->
           <div class="flash-effect" id="flash"></div>
           
-          <!-- Camera controls -->
-          <div class="camera-controls">
-            <button id="prevPhoto" class="btn-nav" title="Previous pose">
-              <i class="fas fa-chevron-left"></i>
+          <!-- Session controls -->
+          <div class="session-controls">
+            <button id="startSessionBtn" class="btn-primary">
+              <i class="fas fa-play"></i> Start Session
             </button>
-            <button id="captureBtn" class="btn-capture">
-              <i class="fas fa-camera"></i>
+            <button id="pauseSessionBtn" class="btn-secondary" style="display: none;">
+              <i class="fas fa-pause"></i> Pause
             </button>
-            <button id="nextPhoto" class="btn-nav" title="Next pose">
-              <i class="fas fa-chevron-right"></i>
+            <button id="restartSessionBtn" class="btn-secondary">
+              <i class="fas fa-redo"></i> Restart
             </button>
           </div>
           
@@ -163,11 +215,11 @@
                   <p>Previewing your photo...</p>
                 </div>
                 <div class="photo-actions">
-                  <button id="savePhoto" class="btn-secondary">
-                    <i class="fas fa-download"></i> Save
+                  <button id="retakePhoto" class="btn-secondary">
+                    <i class="fas fa-redo"></i> Retake
                   </button>
-                  <button id="usePhoto" class="btn-primary">
-                    <i class="fas fa-check"></i> Use Photo
+                  <button id="continueSession" class="btn-primary">
+                    <i class="fas fa-play"></i> Continue
                   </button>
                 </div>
               </div>
@@ -179,15 +231,15 @@
         <div class="camera-status">
           <div class="status-indicator">
             <span class="status-dot" id="statusDot"></span>
-            <span id="camera-status-text">Requesting camera...</span>
+            <span id="camera-status-text">Camera permission required</span>
           </div>
           <div class="pose-info">
             <span id="current-pose-name">-</span>
-            <span id="pose-instruction">Look at the camera and smile!</span>
+            <span id="pose-instruction">Get ready for auto-capture</span>
           </div>
         </div>
         
-        <!-- Camera resolution selector -->
+        <!-- Camera settings -->
         <div class="camera-settings">
           <div class="resolution-selector">
             <label for="resolution">Quality:</label>
@@ -204,9 +256,6 @@
             <button id="toggleMirror" class="btn-option active">
               <i class="fas fa-exchange-alt"></i> Mirror
             </button>
-            <button id="togglePoseOverlay" class="btn-option active" title="Toggle pose overlay">
-              <i class="fas fa-theater-masks"></i> Pose Guide
-            </button>
           </div>
         </div>
         
@@ -220,11 +269,8 @@
       </div>
       
       <div class="navigation-controls">
-        <button id="backToPoses" class="btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back to Poses
-        </button>
-        <button id="retakeCurrent" class="btn-secondary" style="display: none;">
-          <i class="fas fa-redo"></i> Retake Current
+        <button id="backToTimer" class="btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Timer
         </button>
         <button id="finishSession" class="btn-primary" disabled>
           Finish Session <i class="fas fa-check"></i>
