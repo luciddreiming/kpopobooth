@@ -705,19 +705,6 @@ const scaleY = 1;
       console.warn(`Pose image not loaded for: ${currentPoseData.label}`);
     }
     
-    // Add photo label at the bottom
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, videoHeight - 60, videoWidth, 60);
-    
-    ctx.font = 'bold 24px Poppins, sans-serif';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.fillText(currentPoseData.label, videoWidth / 2, videoHeight - 25);
-    
-    ctx.font = '16px Poppins, sans-serif';
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillText(`Photo ${state.currentPhotoIndex + 1} of ${state.selectedPoses.length}`, videoWidth / 2, videoHeight - 5);
-    
     // Store the captured photo
     const photoData = canvas.toDataURL('image/jpeg', 0.9);
     state.takenPhotos[state.currentPhotoIndex] = {
