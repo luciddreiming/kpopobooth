@@ -14,7 +14,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadedPoseImages: {}, // Cache for loaded pose images
     isAutoCapturing: false,
     captureInProgress: false,
-    currentPoseElement: null // Track current pose overlay element
+    currentPoseElement: null, // Track current pose overlay element
+    cameraDisplayWidth: 0, // Store actual display width of camera
+    cameraDisplayHeight: 0 // Store actual display height of camera
   };
 
   // Pose data - 20 poses with image references
@@ -72,8 +74,44 @@ document.addEventListener('DOMContentLoaded', function() {
   const timerOptions = document.querySelectorAll('.timer-option');
   const cameraViewfinder = document.querySelector('.camera-viewfinder');
 
-  // Store original pose image dimensions
-  const poseImageDimensions = {};
+  // Get pose overlay display size - EXACT same as on selection page
+  function getPoseOverlayDisplaySize() {
+    // Get the actual display size from CSS or calculated based on viewport
+    const poseBox = document.querySelector('.pose-box');
+    const slotImage = document.querySelector('.slot.filled .slot-image');
+    
+    // Use fixed sizes that match the CSS for pose boxes
+    if (window.innerWidth <= 480) {
+      // Mobile sizes
+      return { width: 130, height: 80 };
+    } else if (window.innerWidth <= 768) {
+      // Tablet sizes
+      return { width: 150, height: 90 };
+    } else {
+      // Desktop sizes - EXACT same as pose selection page
+      return { width: 180, height: 100 };
+    }
+  }
+
+  // Get pose overlay position - center it
+  function getPoseOverlayPosition() {
+    const displaySize = getCameraDisplaySize();
+    const poseSize = getPoseOverlayDisplaySize();
+    
+    return {
+      x: (displaySize.width - poseSize.width) / 2,
+      y: (displaySize.height - poseSize.height) / 2
+    };
+  }
+
+  // Get the actual displayed size of the camera feed
+  function getCameraDisplaySize() {
+    const cameraRect = cameraFeed.getBoundingClientRect();
+    return {
+      width: cameraRect.width,
+      height: cameraRect.height
+    };
+  }
 
   // Preload pose images when poses are selected
   function preloadPoseImages() {
@@ -83,12 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         img.src = pose.image;
         img.crossOrigin = "anonymous";
         img.onload = () => {
-          console.log(`Loaded pose image: ${pose.label}, dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
-          // Store original dimensions
-          poseImageDimensions[pose.id] = {
-            width: img.naturalWidth,
-            height: img.naturalHeight
-          };
+          console.log(`Loaded pose image: ${pose.label}`);
         };
         img.onerror = (e) => {
           console.error(`Failed to load pose image: ${pose.image}`, e);
@@ -193,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Remove from loaded images
       delete state.loadedPoseImages[id];
-      delete poseImageDimensions[id];
     } else {
       // Check if we can add more (max 4)
       if (state.selectedPoses.length >= 4) {
@@ -210,11 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
       img.src = pose.image;
       img.crossOrigin = "anonymous";
       img.onload = () => {
-        console.log(`Preloaded pose image: ${pose.label}, dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
-        poseImageDimensions[pose.id] = {
-          width: img.naturalWidth,
-          height: img.naturalHeight
-        };
+        console.log(`Preloaded pose image: ${pose.label}`);
       };
       state.loadedPoseImages[pose.id] = img;
       
@@ -372,6 +400,13 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Wait for camera feed to be ready
       await waitForCameraReady();
+      
+      // Store actual display dimensions
+      const displaySize = getCameraDisplaySize();
+      state.cameraDisplayWidth = displaySize.width;
+      state.cameraDisplayHeight = displaySize.height;
+      
+      console.log(`Camera display size: ${state.cameraDisplayWidth}x${state.cameraDisplayHeight}`);
       
       // Show pose overlay (permanent, 100% opacity)
       showPoseOverlay();
@@ -537,17 +572,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (poseImg && poseImg.complete) {
         posePreview.src = currentPose.image;
         posePreview.alt = currentPose.label;
-        
-        // Apply exact same styling as pose selection page
-        posePreview.style.maxWidth = '200px'; // Match pose selection page
-        posePreview.style.maxHeight = '150px'; // Match pose selection page
-        posePreview.style.width = 'auto';
-        posePreview.style.height = 'auto';
-        posePreview.style.objectFit = 'contain';
-        posePreview.style.background = 'white';
-        posePreview.style.padding = '5px';
-        posePreview.style.borderRadius = '8px';
-        
         poseOverlay.style.display = 'flex';
         console.log(`Showing pose overlay: ${currentPose.label}`);
         
@@ -559,17 +583,6 @@ document.addEventListener('DOMContentLoaded', function() {
           poseImg.onload = () => {
             posePreview.src = currentPose.image;
             posePreview.alt = currentPose.label;
-            
-            // Apply exact same styling as pose selection page
-            posePreview.style.maxWidth = '200px';
-            posePreview.style.maxHeight = '150px';
-            posePreview.style.width = 'auto';
-            posePreview.style.height = 'auto';
-            posePreview.style.objectFit = 'contain';
-            posePreview.style.background = 'white';
-            posePreview.style.padding = '5px';
-            posePreview.style.borderRadius = '8px';
-            
             poseOverlay.style.display = 'flex';
             console.log(`Showing pose overlay after load: ${currentPose.label}`);
             
@@ -585,59 +598,6 @@ document.addEventListener('DOMContentLoaded', function() {
   function hidePoseOverlay() {
     poseOverlay.style.display = 'none';
     state.currentPoseElement = null;
-  }
-
-  // Calculate position and size for pose overlay in final photo
-  function calculatePoseOverlayPosition() {
-    if (!state.selectedPoses[state.currentPhotoIndex]) {
-      return {
-        x: 0,
-        y: 0,
-        width: 200,
-        height: 150
-      };
-    }
-    
-    const currentPose = state.selectedPoses[state.currentPhotoIndex];
-    const poseImg = state.loadedPoseImages[currentPose.id];
-    
-    if (!poseImg || !poseImg.complete) {
-      return {
-        x: 0,
-        y: 0,
-        width: 200,
-        height: 150
-      };
-    }
-    
-    // Get the displayed size (from CSS or calculated)
-    const maxWidth = 200; // Match pose selection page
-    const maxHeight = 150; // Match pose selection page
-    
-    // Calculate aspect ratio
-    const aspectRatio = poseImg.naturalWidth / poseImg.naturalHeight;
-    
-    // Calculate final dimensions maintaining aspect ratio
-    let finalWidth = maxWidth;
-    let finalHeight = finalWidth / aspectRatio;
-    
-    // Check if height exceeds max height
-    if (finalHeight > maxHeight) {
-      finalHeight = maxHeight;
-      finalWidth = finalHeight * aspectRatio;
-    }
-    
-    // Calculate position to center the image
-    const cameraRect = cameraFeed.getBoundingClientRect();
-    const centerX = (cameraRect.width - finalWidth) / 2;
-    const centerY = (cameraRect.height - finalHeight) / 2;
-    
-    return {
-      x: centerX,
-      y: centerY,
-      width: finalWidth,
-      height: finalHeight
-    };
   }
 
   // Capture photo automatically
@@ -664,19 +624,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoWidth = cameraFeed.videoWidth || 640;
     const videoHeight = cameraFeed.videoHeight || 480;
     
-    // Get display dimensions for scaling calculation
-    const displayRect = cameraFeed.getBoundingClientRect();
-    const displayWidth = displayRect.width;
-    const displayHeight = displayRect.height;
+    // Get display dimensions
+    const displayWidth = state.cameraDisplayWidth;
+    const displayHeight = state.cameraDisplayHeight;
     
     console.log(`Video dimensions: ${videoWidth}x${videoHeight}`);
     console.log(`Display dimensions: ${displayWidth}x${displayHeight}`);
     
-    // Calculate scaling factors from display to video
+    // Calculate scaling factors
     const scaleX = videoWidth / displayWidth;
     const scaleY = videoHeight / displayHeight;
     
-    // Create canvas with video dimensions
+    // Create canvas with video dimensions (not display dimensions)
     const canvas = document.createElement('canvas');
     canvas.width = videoWidth;
     canvas.height = videoHeight;
@@ -705,23 +664,53 @@ document.addEventListener('DOMContentLoaded', function() {
     if (poseImg && poseImg.complete && poseImg.naturalWidth > 0) {
       console.log(`Drawing pose overlay: ${currentPoseData.label}`);
       
-      // Calculate position and size for pose overlay
-      const posePosition = calculatePoseOverlayPosition();
+      // Get the EXACT display size and position of the pose overlay
+      const poseDisplaySize = getPoseOverlayDisplaySize();
+      const poseDisplayPos = getPoseOverlayPosition();
       
+      // Calculate pose overlay position and size in canvas coordinates
       // Scale from display coordinates to video coordinates
-      const canvasX = posePosition.x * scaleX;
-      const canvasY = posePosition.y * scaleY;
-      const canvasWidth = posePosition.width * scaleX;
-      const canvasHeight = posePosition.height * scaleY;
+      const canvasX = poseDisplayPos.x * scaleX;
+      const canvasY = poseDisplayPos.y * scaleY;
+      const canvasWidth = poseDisplaySize.width * scaleX;
+      const canvasHeight = poseDisplaySize.height * scaleY;
       
+      console.log(`Pose display: pos(${poseDisplayPos.x}, ${poseDisplayPos.y}), size(${poseDisplaySize.width}x${poseDisplaySize.height})`);
       console.log(`Pose canvas: pos(${canvasX}, ${canvasY}), size(${canvasWidth}x${canvasHeight})`);
       
       // Use 100% opacity (no transparency)
       ctx.globalAlpha = 1.0;
       
-      // Draw the pose image on top at exact same size and position as shown in overlay
+      // Draw the pose image on top at EXACT same size as on selection page
       try {
-        ctx.drawImage(poseImg, canvasX, canvasY, canvasWidth, canvasHeight);
+        // Center the image within the pose overlay area
+        const imgAspectRatio = poseImg.naturalWidth / poseImg.naturalHeight;
+        const poseAspectRatio = poseDisplaySize.width / poseDisplaySize.height;
+        
+        let drawWidth = canvasWidth;
+        let drawHeight = canvasHeight;
+        let drawX = canvasX;
+        let drawY = canvasY;
+        
+        // Maintain aspect ratio while fitting in the pose box
+        if (imgAspectRatio > poseAspectRatio) {
+          // Image is wider than pose box
+          drawHeight = canvasWidth / imgAspectRatio;
+          drawY = canvasY + (canvasHeight - drawHeight) / 2;
+        } else {
+          // Image is taller than pose box
+          drawWidth = canvasHeight * imgAspectRatio;
+          drawX = canvasX + (canvasWidth - drawWidth) / 2;
+        }
+        
+        // Draw the image with object-fit: contain behavior
+        ctx.drawImage(poseImg, drawX, drawY, drawWidth, drawHeight);
+        
+        // Draw a subtle border to match the selection page style
+        ctx.strokeStyle = '#ffcc00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(canvasX, canvasY, canvasWidth, canvasHeight);
+        
       } catch (e) {
         console.error('Error drawing pose image:', e);
         // Fallback to center if there's an error
@@ -966,6 +955,8 @@ document.addEventListener('DOMContentLoaded', function() {
     state.isAutoCapturing = false;
     state.captureInProgress = false;
     state.currentPoseElement = null;
+    state.cameraDisplayWidth = 0;
+    state.cameraDisplayHeight = 0;
     
     // Clear any active timers
     if (state.autoCaptureTimer) {
@@ -1037,6 +1028,16 @@ document.addEventListener('DOMContentLoaded', function() {
       await requestCameraPermission();
     } catch (error) {
       console.error('Failed to request camera permission:', error);
+    }
+  });
+
+  // Recalculate display dimensions on window resize
+  window.addEventListener('resize', () => {
+    if (state.cameraInitialized) {
+      const displaySize = getCameraDisplaySize();
+      state.cameraDisplayWidth = displaySize.width;
+      state.cameraDisplayHeight = displaySize.height;
+      console.log(`Camera display size updated: ${state.cameraDisplayWidth}x${state.cameraDisplayHeight}`);
     }
   });
 
